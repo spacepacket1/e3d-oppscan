@@ -17,3 +17,18 @@ export function resetTurnstileWidget(containerId: string) {
     // will simply fail the same way and prompt a reload.
   }
 }
+
+// Implicit-render Turnstile widgets invoke a global function named by the
+// data-callback/data-error-callback/data-expired-callback attributes. Ad
+// blockers, privacy extensions, and strict tracking protection can prevent
+// the widget from ever producing a token at all, which otherwise surfaces
+// only as a vague "please try again" after a full failed form submission --
+// this lets the form show a specific, actionable message the moment the
+// widget itself fails, without waiting for a round trip to the server.
+export function registerTurnstileCallback(callbackName: string, handler: () => void) {
+  const w = window as unknown as Record<string, unknown>;
+  w[callbackName] = handler;
+  return () => {
+    delete w[callbackName];
+  };
+}

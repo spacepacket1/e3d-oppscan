@@ -12,9 +12,14 @@ import {
   type FreeScannerIntakeFieldKey,
   type FreeScannerIntakeValues,
 } from "@/lib/scanner-free-intake";
-import { resetTurnstileWidget } from "@/lib/turnstile-widget";
+import {
+  registerTurnstileCallback,
+  resetTurnstileWidget,
+} from "@/lib/turnstile-widget";
 
 const TURNSTILE_WIDGET_ID = "free-scanner-turnstile";
+const TURNSTILE_FAILURE_CALLBACK = "oppscanFreeScannerTurnstileFailed";
+const TURNSTILE_SUCCESS_CALLBACK = "oppscanFreeScannerTurnstileSolved";
 
 type FreeScannerFormProps = {
   action: (
@@ -40,6 +45,7 @@ export function FreeScannerForm({
   const [values, setValues] = useState<FreeScannerIntakeValues>(state.values);
   const [prefillState, setPrefillState] = useState<PrefillStatus>("idle");
   const [draftedFields, setDraftedFields] = useState<FreeScannerIntakeFieldKey[]>([]);
+  const [turnstileFailed, setTurnstileFailed] = useState(false);
 
   // A stale or already-verified Turnstile token left in the widget after a
   // failed submission would fail the same way on a plain resubmit, so force
@@ -48,6 +54,24 @@ export function FreeScannerForm({
     if (state.status !== "error") return;
     resetTurnstileWidget(TURNSTILE_WIDGET_ID);
   }, [state]);
+
+  // An ad blocker, privacy extension, or strict tracking protection can
+  // prevent the widget from ever producing a token, which otherwise only
+  // surfaces as a vague "please try again" after a full failed submission.
+  useEffect(() => {
+    const unregisterFailure = registerTurnstileCallback(
+      TURNSTILE_FAILURE_CALLBACK,
+      () => setTurnstileFailed(true),
+    );
+    const unregisterSuccess = registerTurnstileCallback(
+      TURNSTILE_SUCCESS_CALLBACK,
+      () => setTurnstileFailed(false),
+    );
+    return () => {
+      unregisterFailure();
+      unregisterSuccess();
+    };
+  }, []);
 
   if (state.status === "success" && state.candidates) {
     return (
@@ -211,9 +235,20 @@ export function FreeScannerForm({
         <div
           aria-label="Bot protection"
           className="cf-turnstile"
+          data-callback={TURNSTILE_SUCCESS_CALLBACK}
+          data-error-callback={TURNSTILE_FAILURE_CALLBACK}
+          data-expired-callback={TURNSTILE_FAILURE_CALLBACK}
           data-sitekey={turnstileSiteKey}
           id={TURNSTILE_WIDGET_ID}
         />
+      ) : null}
+      {turnstileFailed ? (
+        <p className="form-error" role="alert">
+          Bot verification couldn&apos;t load. If you use an ad blocker,
+          privacy extension, or strict tracking protection, please allow{" "}
+          challenges.cloudflare.com and reload this page. If it still
+          doesn&apos;t work, try a different browser.
+        </p>
       ) : null}
 
       {state.errors.form ? (

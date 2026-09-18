@@ -41,6 +41,9 @@ export async function verifyTurnstileToken(token: string, remoteIp?: string) {
   }
 
   if (!token) {
+    console.error(
+      "Turnstile verification rejected an empty token (widget likely never produced one client-side).",
+    );
     return false;
   }
 
