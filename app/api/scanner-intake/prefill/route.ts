@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -41,6 +43,14 @@ export async function POST(request: Request) {
     console.error("Scanner intake prefill rejected: no credit key cookie present.");
     return NextResponse.json({ ok: false, reason: "invalid_key" }, { status: 401 });
   }
+  // Matches productPaymentsService.js's hashKey() exactly (sha256 hex of the
+  // raw key) so this can be diffed directly against the ledger's key_hash
+  // column when tracking down which key a request actually used, without
+  // ever logging the raw key itself.
+  console.error(
+    "Scanner intake prefill: using credit key hash",
+    createHash("sha256").update(creditKey).digest("hex"),
+  );
 
   const internalServiceKey = process.env.E3D_SCANNER_INTERNAL_SERVICE_KEY?.trim() || "";
   if (!internalServiceKey) {
