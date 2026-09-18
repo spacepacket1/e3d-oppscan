@@ -247,6 +247,7 @@ export function FreeScannerForm({
         <div
           aria-label="Bot protection"
           className="cf-turnstile"
+          data-appearance="always"
           data-callback={TURNSTILE_SUCCESS_CALLBACK}
           data-error-callback={TURNSTILE_FAILURE_CALLBACK}
           data-expired-callback={TURNSTILE_FAILURE_CALLBACK}
