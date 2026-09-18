@@ -15,6 +15,7 @@ import {
 import {
   registerTurnstileCallback,
   resetTurnstileWidget,
+  watchForBlockedTurnstileScript,
 } from "@/lib/turnstile-widget";
 
 const TURNSTILE_WIDGET_ID = "free-scanner-turnstile";
@@ -46,6 +47,7 @@ export function FreeScannerForm({
   const [prefillState, setPrefillState] = useState<PrefillStatus>("idle");
   const [draftedFields, setDraftedFields] = useState<FreeScannerIntakeFieldKey[]>([]);
   const [turnstileFailed, setTurnstileFailed] = useState(false);
+  const [turnstileScriptBlocked, setTurnstileScriptBlocked] = useState(false);
 
   // A stale or already-verified Turnstile token left in the widget after a
   // failed submission would fail the same way on a plain resubmit, so force
@@ -72,6 +74,16 @@ export function FreeScannerForm({
       unregisterSuccess();
     };
   }, []);
+
+  // If the Cloudflare script itself never loads (blocked by an ad blocker,
+  // privacy extension, or network filtering), the widget's own callbacks
+  // never fire because the code that would call them never runs -- this
+  // catches that case directly instead of leaving the widget area silently
+  // blank.
+  useEffect(() => {
+    if (!turnstileSiteKey) return;
+    return watchForBlockedTurnstileScript(() => setTurnstileScriptBlocked(true));
+  }, [turnstileSiteKey]);
 
   if (state.status === "success" && state.candidates) {
     return (
@@ -242,7 +254,15 @@ export function FreeScannerForm({
           id={TURNSTILE_WIDGET_ID}
         />
       ) : null}
-      {turnstileFailed ? (
+      {turnstileScriptBlocked ? (
+        <p className="form-error" role="alert">
+          The bot-verification script from challenges.cloudflare.com never
+          loaded in this browser. This is almost always an ad blocker,
+          privacy extension (e.g. Brave Shields, uBlock Origin), or network
+          filtering blocking that domain — please allow it and reload, or
+          try a different browser/network.
+        </p>
+      ) : turnstileFailed ? (
         <p className="form-error" role="alert">
           Bot verification couldn&apos;t load. If you use an ad blocker,
           privacy extension, or strict tracking protection, please allow{" "}

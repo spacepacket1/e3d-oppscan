@@ -27,6 +27,7 @@ import { SCANNER_CREDIT_KEY_STORAGE_KEY } from "@/lib/scanner-intake-session";
 import {
   registerTurnstileCallback,
   resetTurnstileWidget,
+  watchForBlockedTurnstileScript,
 } from "@/lib/turnstile-widget";
 
 const TURNSTILE_WIDGET_ID = "scanner-intake-turnstile";
@@ -163,6 +164,7 @@ export function ScannerIntakeForm({
   );
   const errors = { ...state.errors, ...clientErrors };
   const [turnstileFailed, setTurnstileFailed] = useState(false);
+  const [turnstileScriptBlocked, setTurnstileScriptBlocked] = useState(false);
 
   useEffect(() => {
     if (state.status !== "success" || !state.reportUrl) {
@@ -196,6 +198,16 @@ export function ScannerIntakeForm({
       unregisterSuccess();
     };
   }, []);
+
+  // If the Cloudflare script itself never loads (blocked by an ad blocker,
+  // privacy extension, or network filtering), the widget's own callbacks
+  // never fire because the code that would call them never runs -- this
+  // catches that case directly instead of leaving the widget area silently
+  // blank.
+  useEffect(() => {
+    if (!turnstileSiteKey) return;
+    return watchForBlockedTurnstileScript(() => setTurnstileScriptBlocked(true));
+  }, [turnstileSiteKey]);
 
   async function claimStripeSession(sessionId: string) {
     setAccessState({
@@ -618,7 +630,15 @@ export function ScannerIntakeForm({
               id={TURNSTILE_WIDGET_ID}
             />
           ) : null}
-          {turnstileFailed ? (
+          {turnstileScriptBlocked ? (
+            <p className="form-error" role="alert">
+              The bot-verification script from challenges.cloudflare.com
+              never loaded in this browser. This is almost always an ad
+              blocker, privacy extension (e.g. Brave Shields, uBlock Origin),
+              or network filtering blocking that domain — please allow it
+              and reload, or try a different browser/network.
+            </p>
+          ) : turnstileFailed ? (
             <p className="form-error" role="alert">
               Bot verification couldn&apos;t load. If you use an ad blocker,
               privacy extension, or strict tracking protection, please allow{" "}

@@ -32,3 +32,21 @@ export function registerTurnstileCallback(callbackName: string, handler: () => v
     delete w[callbackName];
   };
 }
+
+// If challenges.cloudflare.com/turnstile/v0/api.js is blocked (ad blocker,
+// privacy extension, corporate network, DNS filtering), the widget's own
+// error/expired callbacks never fire -- the script that would call them
+// never runs. This is the only way to distinguish "script never loaded" (no
+// visible widget, ever) from "widget loaded but the challenge itself
+// failed" (which the error/expired callbacks already cover).
+export function watchForBlockedTurnstileScript(
+  onBlocked: () => void,
+  timeoutMs = 6000,
+) {
+  const timer = window.setTimeout(() => {
+    const turnstile = (window as unknown as { turnstile?: TurnstileGlobal })
+      .turnstile;
+    if (!turnstile) onBlocked();
+  }, timeoutMs);
+  return () => window.clearTimeout(timer);
+}
