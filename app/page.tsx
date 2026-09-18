@@ -19,7 +19,7 @@ export function generateMetadata(): Metadata {
     path: "/",
     title: "Oppscan | AI Opportunity Scanner",
     description:
-      "Buy a manual AI opportunity scan with a short business intake, a written report, and roughly an hour with Chris to discuss the findings.",
+      "Buy a manual AI opportunity scan with a short business intake, a written report, and roughly an hour with FutCo to discuss the findings.",
   });
 }
 

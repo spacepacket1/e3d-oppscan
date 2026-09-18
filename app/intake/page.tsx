@@ -20,7 +20,7 @@ export function generateMetadata(): Metadata {
     path: "/intake",
     title: "Scanner Intake | Oppscan",
     description:
-      "Unlock the paid AI opportunity scanner intake with the checkout payment key, confirm the report email, and submit the business context Chris needs for the manual report.",
+      "Unlock the paid AI opportunity scanner intake with the checkout payment key, confirm the report email, and submit the business context FutCo needs for the manual report.",
   });
 }
 

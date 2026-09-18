@@ -586,7 +586,7 @@ describe("Phase 5 scanner intake acceptance", () => {
     });
   });
 
-  it("delivers the scanner intake with structured content for Chris", async () => {
+  it("delivers the scanner intake with structured content for FutCo", async () => {
     const actualDelivery = await vi.importActual<
       typeof import("@/lib/scanner-intake-delivery")
     >("@/lib/scanner-intake-delivery");

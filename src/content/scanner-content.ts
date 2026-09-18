@@ -4,7 +4,7 @@ export const scannerContent = {
     heading:
       "Get a practical AI opportunity scan before you commit to a larger build.",
     description:
-      "This is a paid manual review for owner-led and technical businesses that want a clear first move. Chris reviews your business intake, identifies the highest-leverage AI opportunities, writes the report by hand, and then spends roughly an hour with you discussing the result.",
+      "This is a paid manual review for owner-led and technical businesses that want a clear first move. FutCo reviews your business intake, identifies the highest-leverage AI opportunities, writes the report by hand, and then spends roughly an hour with you discussing the result.",
     ctaLabel: "Start My AI Opportunity Scan",
   },
   notices: {
@@ -23,7 +23,7 @@ export const scannerContent = {
       "If you click Analyze my site, we fetch your public website to pre-fill this form. You review and correct everything before it's submitted. We don't fetch anything that needs a login.",
     successHeading: "Intake received.",
     successBody:
-      "Chris now has the structured intake and will send the scanner report to the confirmed email address you provided.",
+      "FutCo now has the structured intake and will send the scanner report to the confirmed email address you provided.",
     reportSuccessHeading: "Your scanner report is ready.",
     reportSuccessBody:
       "Review your ranked opportunities now, then use the report to prepare for the consultation included with your scanner purchase.",
@@ -44,7 +44,7 @@ export const scannerContent = {
     items: [
       "A written AI opportunity scan tailored to your business, workflows, and constraints.",
       "Ranked recommendations focused on practical value, feasibility, and risk.",
-      "Roughly an hour with Chris to review the report, answer questions, and discuss next steps.",
+      "Roughly an hour with FutCo to review the report, answer questions, and discuss next steps.",
       "A manual, practitioner-led review rather than a generic automated output.",
     ],
   },
@@ -53,8 +53,8 @@ export const scannerContent = {
     items: [
       "Start checkout for the single scan.",
       "After payment, complete the business intake.",
-      "Chris reviews the intake and prepares the report manually.",
-      "You receive the report and meet with Chris to discuss it.",
+      "FutCo reviews the intake and prepares the report manually.",
+      "You receive the report and meet with FutCo to discuss it.",
     ],
   },
   intake: {

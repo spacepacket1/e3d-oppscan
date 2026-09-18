@@ -136,7 +136,7 @@ export function scannerIntakeSuccessState(
     values,
     errors: {},
     message:
-      "Intake received. Chris will use the email you confirmed here when the scanner report is ready.",
+      "Intake received. FutCo will use the email you confirmed here when the scanner report is ready.",
     submissionId: crypto.randomUUID(),
     ...(reportUrl ? { reportUrl } : {}),
   };
