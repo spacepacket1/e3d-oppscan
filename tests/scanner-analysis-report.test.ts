@@ -44,6 +44,23 @@ const candidates = Array.from({ length: 5 }, (_, index) => ({
   firstStep: "Confirm a workflow owner.",
 }));
 
+const validMaturity = {
+  toolAdoption: 3,
+  processIntegration: 3,
+  dataReadiness: 3,
+  technicalCapacity: 3,
+  governance: 3,
+};
+
+function completionFor(ranked: ReturnType<typeof rankScannerCandidates>) {
+  return {
+    candidates: ranked,
+    report: reportFor(ranked),
+    baseScore: 40,
+    potentialScore: 70,
+  };
+}
+
 function reportFor(ranked = rankScannerCandidates(candidates)) {
   return {
     executiveSummary: "Start with a bounded workflow.",
@@ -81,15 +98,18 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
   });
 
   it("strictly validates candidates and ranked report-copy correspondence", () => {
-    expect(validateCandidateResponse({ candidates })).toEqual(candidates);
+    expect(
+      validateCandidateResponse({ candidates, maturity: validMaturity }),
+    ).toEqual({ candidates, maturity: validMaturity });
     expect(() =>
-      validateCandidateResponse({ candidates, extra: true }),
+      validateCandidateResponse({ candidates, maturity: validMaturity, extra: true }),
     ).toThrow(ScannerAnalysisError);
     expect(() =>
       validateCandidateResponse({
         candidates: candidates.map((item, index) =>
           index ? item : { ...item, impact: 4.5 },
         ),
+        maturity: validMaturity,
       }),
     ).toThrow(ScannerAnalysisError);
     const ranked = rankScannerCandidates(candidates);
@@ -103,6 +123,24 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
     expect(() => validateReportResponse(reversed, ranked)).toThrow(
       ScannerAnalysisError,
     );
+  });
+
+  it("strictly validates the maturity object accompanying candidates", () => {
+    const badMaturities = [
+      { ...validMaturity, extra: true },
+      { toolAdoption: 3, processIntegration: 3, dataReadiness: 3, technicalCapacity: 3 },
+      { ...validMaturity, governance: 0 },
+      { ...validMaturity, governance: 6 },
+      { ...validMaturity, governance: 3.5 },
+    ];
+    for (const maturity of badMaturities) {
+      expect(() =>
+        validateCandidateResponse({ candidates, maturity }),
+      ).toThrowError(expect.objectContaining({ category: "llm_schema" }));
+    }
+    expect(
+      validateCandidateResponse({ candidates, maturity: validMaturity }).maturity,
+    ).toEqual(validMaturity);
   });
 
   it("accepts comprehensive-length report copy up to the raised caps and rejects beyond them", () => {
@@ -187,7 +225,7 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
         transport: async (request) => {
           requests.push(request);
           return requests.length === 1
-            ? JSON.stringify({ candidates })
+            ? JSON.stringify({ candidates, maturity: validMaturity })
             : JSON.stringify(reportFor(ranked));
         },
         timeoutMs: 100,
@@ -200,14 +238,14 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
 
   it("rejects every invalid candidate count and structural failure class", () => {
     const invalid = [
-      { candidates: candidates.slice(0, 4) },
-      { candidates: [...candidates, ...candidates, candidates[0]] },
-      { candidates: candidates.map((item, index) => index ? item : { ...item, id: "UPPER" }) },
-      { candidates: candidates.map((item, index) => index ? item : { ...item, title: "" }) },
-      { candidates: candidates.map((item, index) => index ? item : { ...item, risk: 6 }) },
-      { candidates: candidates.map((item, index) => index ? item : { ...item, extra: true }) },
-      { candidates: candidates.map((item, index) => index === 1 ? { ...item, id: candidates[0].id } : item) },
-      { candidates: candidates.map((item, index) => index ? item : { ...item, firstStep: undefined }) },
+      { candidates: candidates.slice(0, 4), maturity: validMaturity },
+      { candidates: [...candidates, ...candidates, candidates[0]], maturity: validMaturity },
+      { candidates: candidates.map((item, index) => index ? item : { ...item, id: "UPPER" }), maturity: validMaturity },
+      { candidates: candidates.map((item, index) => index ? item : { ...item, title: "" }), maturity: validMaturity },
+      { candidates: candidates.map((item, index) => index ? item : { ...item, risk: 6 }), maturity: validMaturity },
+      { candidates: candidates.map((item, index) => index ? item : { ...item, extra: true }), maturity: validMaturity },
+      { candidates: candidates.map((item, index) => index === 1 ? { ...item, id: candidates[0].id } : item), maturity: validMaturity },
+      { candidates: candidates.map((item, index) => index ? item : { ...item, firstStep: undefined }), maturity: validMaturity },
     ];
     for (const response of invalid) {
       expect(() => validateCandidateResponse(response)).toThrowError(
@@ -215,7 +253,8 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
       );
     }
     expect(
-      validateCandidateResponse({ candidates })[4].outcomeType,
+      validateCandidateResponse({ candidates, maturity: validMaturity }).candidates[4]
+        .outcomeType,
     ).toBe("do-nothing");
   });
 
@@ -274,7 +313,7 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
     const ranked = rankScannerCandidates(candidates);
     const requests: unknown[] = [];
     const outputs = [
-      JSON.stringify({ candidates }),
+      JSON.stringify({ candidates, maturity: validMaturity }),
       JSON.stringify(reportFor(ranked)),
     ];
     const result = await generateScannerAnalysis(
@@ -344,7 +383,7 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
         transport: async (request) => {
           requests.push(request);
           return requests.length === 1
-            ? JSON.stringify({ candidates })
+            ? JSON.stringify({ candidates, maturity: validMaturity })
             : JSON.stringify(reportFor(ranked));
         },
       },
@@ -405,7 +444,7 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
     await store.completeReport(
       scanId,
       "owner-a",
-      { candidates: ranked, report: reportFor(ranked) },
+      completionFor(ranked),
       hashReportAccessToken(token),
       "2026-09-10T00:01:00.000Z",
     );
@@ -438,7 +477,7 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
     const tokenB = deriveReportAccessToken(scanB);
     const ranked = rankScannerCandidates(candidates);
     await store.acquireGenerationLease(scanA, "owner-a", 1, 100);
-    await store.completeReport(scanA, "owner-a", { candidates: ranked, report: reportFor(ranked) }, hashReportAccessToken(tokenA), "2026-09-10T00:00:00.000Z");
+    await store.completeReport(scanA, "owner-a", completionFor(ranked), hashReportAccessToken(tokenA), "2026-09-10T00:00:00.000Z");
     const mismatchedStore = Object.assign(Object.create(store), {
       getByTokenHash: async () => ({ ...(await store.getByScanId(scanA))!, scanId: scanB }),
     }) as InMemoryScannerReportStore;
@@ -483,14 +522,14 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
     await store.acquireGenerationLease("scan_race", "stale", 1, 2);
     await store.acquireGenerationLease("scan_race", "winner", 3, 100);
     await expect(store.completeReport(
-      "scan_race", "stale", { candidates: ranked, report: reportFor(ranked) }, "a".repeat(64), "2026-09-10T00:00:00.000Z",
+      "scan_race", "stale", completionFor(ranked), "a".repeat(64), "2026-09-10T00:00:00.000Z",
     )).rejects.toThrow("not owned");
     await store.releaseGenerationLease("scan_race", "stale");
     const winner = await store.completeReport(
-      "scan_race", "winner", { candidates: ranked, report: reportFor(ranked) }, "b".repeat(64), "2026-09-10T00:01:00.000Z",
+      "scan_race", "winner", completionFor(ranked), "b".repeat(64), "2026-09-10T00:01:00.000Z",
     );
     const loser = await store.completeReport(
-      "scan_race", "loser", { candidates: [], report: reportFor([]) }, "c".repeat(64), "2026-09-10T00:02:00.000Z",
+      "scan_race", "loser", completionFor([]), "c".repeat(64), "2026-09-10T00:02:00.000Z",
     );
     expect(loser).toEqual(winner);
     expect((await store.getByScanId("scan_race"))?.tokenHash).toBe("b".repeat(64));
@@ -523,8 +562,7 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
       scanId: "scan_safe",
       completedAt: "2026-09-10T00:00:00.000Z",
       tokenHash: "a".repeat(64),
-      candidates: ranked,
-      report: reportFor(ranked),
+      ...completionFor(ranked),
     };
     const markup = renderToStaticMarkup(
       createElement(ScannerReport, {
@@ -538,6 +576,9 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
       'href="/report/token/consultation"',
     );
     expect(markup).toContain("Risk");
+    expect(markup).toContain("40/100");
+    expect(markup).toContain("70/100");
+    expect(markup).toContain("Points toward 100");
   });
 });
 
@@ -560,7 +601,7 @@ describe("free scanner candidate generation", () => {
     const ranked = await generateFreeScannerCandidates(freeValues, {
       transport: async (request) => {
         requests.push(request);
-        return JSON.stringify({ candidates });
+        return JSON.stringify({ candidates, maturity: validMaturity });
       },
       timeoutMs: 100,
     });
@@ -584,7 +625,8 @@ describe("free scanner candidate generation", () => {
   it("rejects an invalid candidate response the same way the paid path does", async () => {
     await expect(
       generateFreeScannerCandidates(freeValues, {
-        transport: async () => JSON.stringify({ candidates: [] }),
+        transport: async () =>
+          JSON.stringify({ candidates: [], maturity: validMaturity }),
         timeoutMs: 100,
       }),
     ).rejects.toThrow(ScannerAnalysisError);

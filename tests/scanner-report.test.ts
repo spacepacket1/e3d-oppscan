@@ -30,7 +30,7 @@ describe("scanner report authorization and telemetry", () => {
       candidates: [{
         id: "safe-candidate", title: "Safe", summary: "Summary", outcomeType: "augmentation",
         impact: 4, feasibility: 4, timeToValue: 4, confidence: 4, risk: 1,
-        evidence: ["Evidence"], firstStep: "Start", score: 350, rank: 1,
+        evidence: ["Evidence"], firstStep: "Start", score: 350, rank: 1, pointValue: 10,
       }],
       report: {
         executiveSummary: "Summary", recommendedStartingPoint: "Start",
@@ -38,6 +38,8 @@ describe("scanner report authorization and telemetry", () => {
           practicalApproach: "How", considerations: ["Care"] }],
         consultationPreparation: ["Owner?", "Baseline?"], closingNote: "Close",
       },
+      baseScore: 50,
+      potentialScore: 60,
     }, hashReportAccessToken(token), "2026-09-10T00:00:00.000Z");
     telemetry = vi.fn();
     setScannerReportStoreForTests(store);

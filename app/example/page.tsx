@@ -2,9 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ScannerReport } from "@/components/scanner-report";
-import { exampleCandidates, exampleReport } from "@/content/example-report";
+import {
+  exampleCandidates,
+  exampleMaturity,
+  exampleReport,
+} from "@/content/example-report";
 import { buildPageMetadata } from "@/lib/seo";
-import { rankScannerCandidates } from "@/lib/scanner-scoring";
+import {
+  computeBaseScore,
+  computePotentialScore,
+  rankScannerCandidates,
+} from "@/lib/scanner-scoring";
 
 export function generateMetadata(): Metadata {
   return buildPageMetadata({
@@ -15,12 +23,17 @@ export function generateMetadata(): Metadata {
   });
 }
 
+const exampleRankedCandidates = rankScannerCandidates(exampleCandidates);
+const exampleBaseScore = computeBaseScore(exampleMaturity);
+
 const exampleRecord = {
   scanId: "scan_example",
   completedAt: "2026-09-18T00:00:00.000Z",
   tokenHash: "0".repeat(64),
-  candidates: rankScannerCandidates(exampleCandidates),
+  candidates: exampleRankedCandidates,
   report: exampleReport,
+  baseScore: exampleBaseScore,
+  potentialScore: computePotentialScore(exampleBaseScore, exampleRankedCandidates),
 };
 
 export default function ExampleReportPage() {

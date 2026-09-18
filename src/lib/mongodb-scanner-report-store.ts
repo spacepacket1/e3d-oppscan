@@ -26,6 +26,8 @@ type ScannerReportDocument = {
   completedAt?: Date;
   candidates?: RankedScannerCandidate[];
   report?: ScannerReportCopy;
+  baseScore?: number;
+  potentialScore?: number;
   telemetryEvents?: Record<string, Date>;
 };
 
@@ -187,6 +189,8 @@ export class MongoScannerReportStore implements ScannerReportStore {
           completedAt: new Date(completedAt),
           candidates: structuredClone(input.candidates),
           report: structuredClone(input.report),
+          baseScore: input.baseScore,
+          potentialScore: input.potentialScore,
         },
         $unset: { lease: "" },
       },
@@ -316,7 +320,9 @@ function completedReportFromDocument(
     !document.tokenHash ||
     !document.completedAt ||
     !document.candidates ||
-    !document.report
+    !document.report ||
+    typeof document.baseScore !== "number" ||
+    typeof document.potentialScore !== "number"
   ) {
     throw new Error("Completed scanner report is malformed.");
   }
@@ -330,6 +336,8 @@ function completedReportFromDocument(
     tokenHash: document.tokenHash,
     candidates: structuredClone(document.candidates),
     report: structuredClone(document.report),
+    baseScore: document.baseScore,
+    potentialScore: document.potentialScore,
   };
 }
 

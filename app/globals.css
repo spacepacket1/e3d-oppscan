@@ -2413,3 +2413,17 @@ button {
   color: var(--ink-950);
   text-transform: capitalize;
 }
+
+/* Scanner report: base score / potential score summary */
+.scanner-score-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.scanner-score-summary__value {
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 800;
+  color: var(--ink-950);
+  margin: 0.25rem 0;
+}

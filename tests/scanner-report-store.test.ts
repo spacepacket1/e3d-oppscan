@@ -26,6 +26,7 @@ const completion: ScannerReportCompletionInput = {
       firstStep: "Start",
       score: 100,
       rank: 1,
+      pointValue: 10,
     },
   ],
   report: {
@@ -35,6 +36,8 @@ const completion: ScannerReportCompletionInput = {
     consultationPreparation: ["Prepare"],
     closingNote: "Close",
   },
+  baseScore: 50,
+  potentialScore: 60,
 };
 
 afterEach(() => {

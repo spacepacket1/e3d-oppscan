@@ -1369,6 +1369,7 @@ function buildAnalysisResult() {
     firstStep: "Confirm the workflow owner.",
     score: 350,
     rank: index + 1,
+    pointValue: 10,
   }));
   return {
     candidates,
@@ -1388,5 +1389,7 @@ function buildAnalysisResult() {
       ],
       closingNote: "Use the consultation to validate scope.",
     },
+    baseScore: 50,
+    potentialScore: 60,
   };
 }

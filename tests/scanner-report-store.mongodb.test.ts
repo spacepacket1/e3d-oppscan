@@ -31,6 +31,7 @@ const completion: ScannerReportCompletionInput = {
       firstStep: "Map the intake flow.",
       score: 93,
       rank: 1,
+      pointValue: 10,
     },
   ],
   report: {
@@ -48,6 +49,8 @@ const completion: ScannerReportCompletionInput = {
     consultationPreparation: ["Bring a sample form"],
     closingNote: "Measure the first workflow before expanding.",
   },
+  baseScore: 50,
+  potentialScore: 60,
 };
 
 const client = new MongoClient(MONGO_URL, { serverSelectionTimeoutMS: 10_000 });

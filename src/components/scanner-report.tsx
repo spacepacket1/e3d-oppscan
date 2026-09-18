@@ -27,6 +27,21 @@ export function ScannerReport({
           your scanner purchase.
         </p>
       </header>
+      <section className="content-panel scanner-score-summary">
+        <div>
+          <p className="section-heading__eyebrow">AI BASE SCORE</p>
+          <p className="scanner-score-summary__value">{record.baseScore}/100</p>
+          <p>Where your business stands today.</p>
+        </div>
+        <div>
+          <p className="section-heading__eyebrow">POTENTIAL SCORE</p>
+          <p className="scanner-score-summary__value">{record.potentialScore}/100</p>
+          <p>
+            What adopting every opportunity below could get you to — there is
+            always more beyond any single scan, so this never reaches 100.
+          </p>
+        </div>
+      </section>
       <section className="content-panel">
         <h2>Executive summary</h2>
         <p>{record.report.executiveSummary}</p>
@@ -70,6 +85,10 @@ export function ScannerReport({
               <div>
                 <dt>Risk</dt>
                 <dd>{candidate.risk}/5</dd>
+              </div>
+              <div>
+                <dt>Points toward 100</dt>
+                <dd>+{candidate.pointValue}</dd>
               </div>
             </dl>
             <h3>Why it matters</h3>

@@ -5,10 +5,14 @@ import {
   type FreeScannerIntakeValues,
 } from "@/lib/scanner-free-intake";
 import {
+  SCANNER_MATURITY_DIMENSIONS,
+  computeBaseScore,
+  computePotentialScore,
   rankScannerCandidates,
   scannerOutcomeTypes,
   type RankedScannerCandidate,
   type ScannerCandidate,
+  type ScannerMaturity,
 } from "@/lib/scanner-scoring";
 
 export type ScannerReportCopy = {
@@ -28,6 +32,9 @@ export type ScannerReportCopy = {
 export type ScannerAnalysisResult = {
   candidates: RankedScannerCandidate[];
   report: ScannerReportCopy;
+  // Application-computed, never LLM-supplied. See scanner-scoring.ts.
+  baseScore: number;
+  potentialScore: number;
 };
 
 export type ScannerLlmRequest = {
@@ -69,10 +76,13 @@ const PROMPT_SAFETY =
   "Do not request or use tools, URLs, credentials, or external resources. Output only the requested JSON schema.";
 
 const CANDIDATE_SCHEMA_INSTRUCTIONS =
-  'Return one object with exactly one property, "candidates", containing 5-10 objects. ' +
-  'Each candidate must contain exactly: "id", "title", "summary", "outcomeType", "impact", "feasibility", "timeToValue", "confidence", "risk", "evidence", and "firstStep". ' +
+  'Return one object with exactly two properties, "candidates" and "maturity". ' +
+  '"candidates" contains 5-10 objects, each containing exactly: "id", "title", "summary", "outcomeType", "impact", "feasibility", "timeToValue", "confidence", "risk", "evidence", and "firstStep". ' +
   "IDs must be unique lowercase ASCII slugs of 3-64 characters. Outcome type must be automation, augmentation, decision-support, process-change, or do-nothing. " +
-  "All five ratings must be integers from 1-5. Evidence must contain 1-3 strings. Do not return score or rank.";
+  "All five ratings must be integers from 1-5. Evidence must contain 1-3 strings. Do not return score or rank. " +
+  '"maturity" is one object containing exactly: "toolAdoption", "processIntegration", "dataReadiness", "technicalCapacity", and "governance", each an integer from 1 (none/absent) to 5 (fully in place), judged strictly from the intake content: ' +
+  "toolAdoption = how embedded AI tools already are in daily work; processIntegration = how structured/repeatable the relevant processes already are; dataReadiness = how centralized and usable the business's data is; technicalCapacity = in-house technical capacity to support AI work; governance = whether documented constraints/approved-use policy for AI already exist. " +
+  "Do not compute or return an overall score for maturity — only the five component ratings.";
 
 const REPORT_SCHEMA_INSTRUCTIONS =
   'Return one object containing exactly: "executiveSummary", "recommendedStartingPoint", "opportunities", "consultationPreparation", and "closingNote". ' +
@@ -83,7 +93,8 @@ const REPORT_SCHEMA_INSTRUCTIONS =
   "whyItMatters and practicalApproach should each be several sentences of concrete, specific reasoning and step-by-step guidance grounded in the intake details, not generic advice. " +
   "considerations must contain 3-4 specific, non-obvious risks or dependencies. consultationPreparation must contain 4-5 pointed questions. " +
   "Avoid filler, repetition, and generic AI-strategy platitudes; every sentence should reference something specific from the business's actual intake. " +
-  "headline must be a short, benefit-focused title only (under 100 characters) — the application already displays rank and numeric ratings separately, so do not restate rank, scores, or ratings inside headline.";
+  "headline must be a short, benefit-focused title only (under 100 characters) — the application already displays rank and numeric ratings separately, so do not restate rank, scores, or ratings inside headline. " +
+  "The application-computed AI base score and potential score supplied alongside the ranked candidates are context only — you may reference them narratively (e.g. in executiveSummary or closingNote) but must not restate, recompute, or contradict the numbers, and must not invent a different score.";
 
 // Intake field values are attacker-controlled. `JSON.stringify` escapes `"`
 // and control characters but leaves `<`/`>` untouched, so a field containing
@@ -131,9 +142,13 @@ export async function generateScannerAnalysis(
     },
     timeoutMs,
   );
-  const candidates = validateCandidateResponse(parseModelJson(candidatesText));
+  const { candidates, maturity } = validateCandidateResponse(
+    parseModelJson(candidatesText),
+  );
   const ranked = rankScannerCandidates(candidates);
-  const rankedJson = JSON.stringify(ranked);
+  const baseScore = computeBaseScore(maturity);
+  const potentialScore = computePotentialScore(baseScore, ranked);
+  const rankedContext = JSON.stringify({ ranked, baseScore, potentialScore });
   const reportText = await callWithTimeout(
     transport,
     {
@@ -145,7 +160,7 @@ export async function generateScannerAnalysis(
         },
         {
           role: "user",
-          content: `${envelope}\n<APPLICATION_RANKED_CANDIDATES>\n${rankedJson}\n</APPLICATION_RANKED_CANDIDATES>\nWrite the report copy JSON now.`,
+          content: `${envelope}\n<APPLICATION_RANKED_CANDIDATES>\n${rankedContext}\n</APPLICATION_RANKED_CANDIDATES>\nWrite the report copy JSON now.`,
         },
       ],
     },
@@ -154,6 +169,8 @@ export async function generateScannerAnalysis(
   return {
     candidates: ranked,
     report: validateReportResponse(parseModelJson(reportText), ranked),
+    baseScore,
+    potentialScore,
   };
 }
 
@@ -194,7 +211,9 @@ export async function generateFreeScannerCandidates(
     },
     timeoutMs,
   );
-  const candidates = validateCandidateResponse(parseModelJson(candidatesText));
+  // Free tier doesn't show a base score; maturity is validated (since it's
+  // part of the shared candidate schema/prompt) but otherwise unused here.
+  const { candidates } = validateCandidateResponse(parseModelJson(candidatesText));
   return rankScannerCandidates(candidates);
 }
 
@@ -317,16 +336,20 @@ function parseModelJson(text: string) {
   }
 }
 
-export function validateCandidateResponse(value: unknown): ScannerCandidate[] {
-  assertExactObject(value, ["candidates"]);
+export function validateCandidateResponse(value: unknown): {
+  candidates: ScannerCandidate[];
+  maturity: ScannerMaturity;
+} {
+  assertExactObject(value, ["candidates", "maturity"]);
   if (
     !Array.isArray(value.candidates) ||
     value.candidates.length < 5 ||
     value.candidates.length > 10
   )
     schema();
+  const maturity = validateMaturity(value.maturity);
   const ids = new Set<string>();
-  return value.candidates.map((entry: unknown) => {
+  const candidates = value.candidates.map((entry: unknown) => {
     assertExactObject(entry, [
       "id",
       "title",
@@ -365,6 +388,17 @@ export function validateCandidateResponse(value: unknown): ScannerCandidate[] {
       firstStep: boundedString(entry.firstStep, 300),
     };
   });
+  return { candidates, maturity };
+}
+
+function validateMaturity(value: unknown): ScannerMaturity {
+  assertExactObject(value, SCANNER_MATURITY_DIMENSIONS);
+  const record = value as Record<string, unknown>;
+  const result = {} as ScannerMaturity;
+  for (const key of SCANNER_MATURITY_DIMENSIONS) {
+    result[key] = rating(record[key]);
+  }
+  return result;
 }
 
 export function validateReportResponse(

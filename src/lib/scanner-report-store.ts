@@ -16,11 +16,16 @@ export type ScannerCompletedReport = {
   tokenHash: string;
   candidates: RankedScannerCandidate[];
   report: ScannerReportCopy;
+  // Application-computed AI maturity score (0-100) and the score a
+  // business could reach by adopting every listed opportunity. See
+  // computeBaseScore/computePotentialScore in scanner-scoring.ts.
+  baseScore: number;
+  potentialScore: number;
 };
 
 export type ScannerReportCompletionInput = Pick<
   ScannerCompletedReport,
-  "candidates" | "report"
+  "candidates" | "report" | "baseScore" | "potentialScore"
 >;
 
 export interface ScannerReportStore {
@@ -217,6 +222,8 @@ export class InMemoryScannerReportStore implements ScannerReportStore {
       tokenHash,
       candidates: structuredClone(input.candidates),
       report: structuredClone(input.report),
+      baseScore: input.baseScore,
+      potentialScore: input.potentialScore,
     };
     delete record.lease;
     return record.completed;
