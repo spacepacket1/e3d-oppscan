@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import Link from "next/link";
 
@@ -24,15 +24,9 @@ import {
 } from "@/lib/scanner-intake-prefill";
 import { INTAKE_FIELDS, type IntakeField } from "@/lib/scanner-intake-fields";
 import { SCANNER_CREDIT_KEY_STORAGE_KEY } from "@/lib/scanner-intake-session";
-import {
-  registerTurnstileCallback,
-  resetTurnstileWidget,
-  watchForBlockedTurnstileScript,
-} from "@/lib/turnstile-widget";
+import { mountTurnstileWidget, resetTurnstileWidget } from "@/lib/turnstile-widget";
 
 const TURNSTILE_WIDGET_ID = "scanner-intake-turnstile";
-const TURNSTILE_FAILURE_CALLBACK = "oppscanScannerIntakeTurnstileFailed";
-const TURNSTILE_SUCCESS_CALLBACK = "oppscanScannerIntakeTurnstileSolved";
 
 const groupLabels = {
   company: "Company",
@@ -181,33 +175,35 @@ export function ScannerIntakeForm({
     resetTurnstileWidget(TURNSTILE_WIDGET_ID);
   }, [state]);
 
-  // An ad blocker, privacy extension, or strict tracking protection can
-  // prevent the widget from ever producing a token, which otherwise only
-  // surfaces as a vague "please try again" after a full failed submission.
-  useEffect(() => {
-    const unregisterFailure = registerTurnstileCallback(
-      TURNSTILE_FAILURE_CALLBACK,
-      () => setTurnstileFailed(true),
-    );
-    const unregisterSuccess = registerTurnstileCallback(
-      TURNSTILE_SUCCESS_CALLBACK,
-      () => setTurnstileFailed(false),
-    );
-    return () => {
-      unregisterFailure();
-      unregisterSuccess();
-    };
-  }, []);
-
-  // If the Cloudflare script itself never loads (blocked by an ad blocker,
-  // privacy extension, or network filtering), the widget's own callbacks
-  // never fire because the code that would call them never runs -- this
-  // catches that case directly instead of leaving the widget area silently
-  // blank.
-  useEffect(() => {
-    if (!turnstileSiteKey) return;
-    return watchForBlockedTurnstileScript(() => setTurnstileScriptBlocked(true));
-  }, [turnstileSiteKey]);
+  // This form's Turnstile container only mounts once accessState reaches
+  // "ready" (behind the payment-key gate), well after Cloudflare's script
+  // would have already run its one-time implicit-render scan -- so
+  // implicit rendering (a bare data-sitekey div) never picks it up. A ref
+  // callback fires exactly when the container node is actually attached,
+  // whenever that happens, so explicit rendering here works regardless of
+  // that timing.
+  const turnstileCleanupRef = useRef<(() => void) | null>(null);
+  const setTurnstileContainer = useCallback(
+    (node: HTMLDivElement | null) => {
+      turnstileCleanupRef.current?.();
+      turnstileCleanupRef.current = null;
+      if (!node || !turnstileSiteKey) return;
+      setTurnstileFailed(false);
+      setTurnstileScriptBlocked(false);
+      turnstileCleanupRef.current = mountTurnstileWidget(
+        node,
+        {
+          sitekey: turnstileSiteKey,
+          appearance: "always",
+          callback: () => setTurnstileFailed(false),
+          "error-callback": () => setTurnstileFailed(true),
+          "expired-callback": () => setTurnstileFailed(true),
+        },
+        () => setTurnstileScriptBlocked(true),
+      );
+    },
+    [turnstileSiteKey],
+  );
 
   async function claimStripeSession(sessionId: string) {
     setAccessState({
@@ -622,13 +618,8 @@ export function ScannerIntakeForm({
           {turnstileSiteKey ? (
             <div
               aria-label="Bot protection"
-              className="cf-turnstile"
-              data-appearance="always"
-              data-callback={TURNSTILE_SUCCESS_CALLBACK}
-              data-error-callback={TURNSTILE_FAILURE_CALLBACK}
-              data-expired-callback={TURNSTILE_FAILURE_CALLBACK}
-              data-sitekey={turnstileSiteKey}
               id={TURNSTILE_WIDGET_ID}
+              ref={setTurnstileContainer}
             />
           ) : null}
           {turnstileScriptBlocked ? (

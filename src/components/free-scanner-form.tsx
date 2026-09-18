@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 
@@ -12,15 +12,9 @@ import {
   type FreeScannerIntakeFieldKey,
   type FreeScannerIntakeValues,
 } from "@/lib/scanner-free-intake";
-import {
-  registerTurnstileCallback,
-  resetTurnstileWidget,
-  watchForBlockedTurnstileScript,
-} from "@/lib/turnstile-widget";
+import { mountTurnstileWidget, resetTurnstileWidget } from "@/lib/turnstile-widget";
 
 const TURNSTILE_WIDGET_ID = "free-scanner-turnstile";
-const TURNSTILE_FAILURE_CALLBACK = "oppscanFreeScannerTurnstileFailed";
-const TURNSTILE_SUCCESS_CALLBACK = "oppscanFreeScannerTurnstileSolved";
 
 type FreeScannerFormProps = {
   action: (
@@ -57,33 +51,32 @@ export function FreeScannerForm({
     resetTurnstileWidget(TURNSTILE_WIDGET_ID);
   }, [state]);
 
-  // An ad blocker, privacy extension, or strict tracking protection can
-  // prevent the widget from ever producing a token, which otherwise only
-  // surfaces as a vague "please try again" after a full failed submission.
-  useEffect(() => {
-    const unregisterFailure = registerTurnstileCallback(
-      TURNSTILE_FAILURE_CALLBACK,
-      () => setTurnstileFailed(true),
-    );
-    const unregisterSuccess = registerTurnstileCallback(
-      TURNSTILE_SUCCESS_CALLBACK,
-      () => setTurnstileFailed(false),
-    );
-    return () => {
-      unregisterFailure();
-      unregisterSuccess();
-    };
-  }, []);
-
-  // If the Cloudflare script itself never loads (blocked by an ad blocker,
-  // privacy extension, or network filtering), the widget's own callbacks
-  // never fire because the code that would call them never runs -- this
-  // catches that case directly instead of leaving the widget area silently
-  // blank.
-  useEffect(() => {
-    if (!turnstileSiteKey) return;
-    return watchForBlockedTurnstileScript(() => setTurnstileScriptBlocked(true));
-  }, [turnstileSiteKey]);
+  // Explicit rendering, triggered by a ref callback that fires exactly when
+  // the container is attached, rather than Cloudflare's implicit
+  // `data-sitekey` auto-render (which only scans the DOM once, at script
+  // load time, and never picks up a container that appears later).
+  const turnstileCleanupRef = useRef<(() => void) | null>(null);
+  const setTurnstileContainer = useCallback(
+    (node: HTMLDivElement | null) => {
+      turnstileCleanupRef.current?.();
+      turnstileCleanupRef.current = null;
+      if (!node || !turnstileSiteKey) return;
+      setTurnstileFailed(false);
+      setTurnstileScriptBlocked(false);
+      turnstileCleanupRef.current = mountTurnstileWidget(
+        node,
+        {
+          sitekey: turnstileSiteKey,
+          appearance: "always",
+          callback: () => setTurnstileFailed(false),
+          "error-callback": () => setTurnstileFailed(true),
+          "expired-callback": () => setTurnstileFailed(true),
+        },
+        () => setTurnstileScriptBlocked(true),
+      );
+    },
+    [turnstileSiteKey],
+  );
 
   if (state.status === "success" && state.candidates) {
     return (
@@ -244,16 +237,7 @@ export function FreeScannerForm({
       </div>
 
       {turnstileSiteKey ? (
-        <div
-          aria-label="Bot protection"
-          className="cf-turnstile"
-          data-appearance="always"
-          data-callback={TURNSTILE_SUCCESS_CALLBACK}
-          data-error-callback={TURNSTILE_FAILURE_CALLBACK}
-          data-expired-callback={TURNSTILE_FAILURE_CALLBACK}
-          data-sitekey={turnstileSiteKey}
-          id={TURNSTILE_WIDGET_ID}
-        />
+        <div aria-label="Bot protection" id={TURNSTILE_WIDGET_ID} ref={setTurnstileContainer} />
       ) : null}
       {turnstileScriptBlocked ? (
         <p className="form-error" role="alert">
