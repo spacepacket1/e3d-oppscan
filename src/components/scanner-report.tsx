@@ -42,7 +42,7 @@ export function ScannerReport({
             <h2>{copy.headline}</h2>
             <p>{candidate.title}</p>
             <p>{candidate.summary}</p>
-            <dl>
+            <dl className="scanner-candidate-stats">
               <div>
                 <dt>Score</dt>
                 <dd>{candidate.score}</dd>
