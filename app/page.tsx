@@ -66,6 +66,9 @@ export default async function AiOpportunityScannerPage({
               <Link className="button button--secondary" href="/free">
                 Try a free simplified summary first
               </Link>
+              <Link className="button button--ghost" href="/example">
+                See an example report
+              </Link>
             </div>
           </div>
           {notice ? (

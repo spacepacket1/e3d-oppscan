@@ -105,6 +105,99 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
     );
   });
 
+  it("accepts comprehensive-length report copy up to the raised caps and rejects beyond them", () => {
+    const ranked = rankScannerCandidates(candidates);
+    const long = (n: number) => "a".repeat(n);
+    const comprehensive = {
+      executiveSummary: long(4000),
+      recommendedStartingPoint: long(2000),
+      opportunities: ranked.map((candidate) => ({
+        candidateId: candidate.id,
+        headline: long(140),
+        whyItMatters: long(1800),
+        practicalApproach: long(2200),
+        considerations: [long(500), long(500), long(500)],
+      })),
+      consultationPreparation: [long(400), long(400), long(400), long(400)],
+      closingNote: long(900),
+    };
+    expect(validateReportResponse(comprehensive, ranked)).toEqual(comprehensive);
+
+    const overLimits: Array<[string, unknown]> = [
+      ["executiveSummary", { ...comprehensive, executiveSummary: long(4001) }],
+      [
+        "recommendedStartingPoint",
+        { ...comprehensive, recommendedStartingPoint: long(2001) },
+      ],
+      ["closingNote", { ...comprehensive, closingNote: long(901) }],
+    ];
+    for (const [, response] of overLimits) {
+      expect(() => validateReportResponse(response, ranked)).toThrow(
+        ScannerAnalysisError,
+      );
+    }
+    expect(() =>
+      validateReportResponse(
+        {
+          ...comprehensive,
+          opportunities: [
+            { ...comprehensive.opportunities[0], headline: long(141) },
+            ...comprehensive.opportunities.slice(1),
+          ],
+        },
+        ranked,
+      ),
+    ).toThrow(ScannerAnalysisError);
+    expect(() =>
+      validateReportResponse(
+        {
+          ...comprehensive,
+          opportunities: [
+            { ...comprehensive.opportunities[0], whyItMatters: long(1801) },
+            ...comprehensive.opportunities.slice(1),
+          ],
+        },
+        ranked,
+      ),
+    ).toThrow(ScannerAnalysisError);
+    expect(() =>
+      validateReportResponse(
+        {
+          ...comprehensive,
+          opportunities: [
+            {
+              ...comprehensive.opportunities[0],
+              practicalApproach: long(2201),
+            },
+            ...comprehensive.opportunities.slice(1),
+          ],
+        },
+        ranked,
+      ),
+    ).toThrow(ScannerAnalysisError);
+  });
+
+  it("instructs the model to write comprehensively and to keep headline free of rank/scores", async () => {
+    const requests: Array<{ messages: Array<{ content: string }> }> = [];
+    const ranked = rankScannerCandidates(candidates);
+    await generateScannerAnalysis(
+      "scan_comprehensive",
+      emptyScannerIntakeFormValues,
+      {
+        transport: async (request) => {
+          requests.push(request);
+          return requests.length === 1
+            ? JSON.stringify({ candidates })
+            : JSON.stringify(reportFor(ranked));
+        },
+        timeoutMs: 100,
+      },
+    );
+    const reportSystemPrompt = requests[1].messages[0].content;
+    expect(reportSystemPrompt).toContain("write comprehensively and specifically");
+    expect(reportSystemPrompt).toContain("do not restate rank, scores, or ratings");
+  });
+
   it("rejects every invalid candidate count and structural failure class", () => {
     const invalid = [
       { candidates: candidates.slice(0, 4) },

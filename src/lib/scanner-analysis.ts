@@ -77,7 +77,13 @@ const CANDIDATE_SCHEMA_INSTRUCTIONS =
 const REPORT_SCHEMA_INSTRUCTIONS =
   'Return one object containing exactly: "executiveSummary", "recommendedStartingPoint", "opportunities", "consultationPreparation", and "closingNote". ' +
   'Each opportunity must contain exactly: "candidateId", "headline", "whyItMatters", "practicalApproach", and "considerations". ' +
-  "Return exactly one opportunity for each ranked candidate, in the supplied order, without changing IDs, scores, or ranks. Consultation preparation must contain 2-5 strings and considerations 1-4 strings.";
+  "Return exactly one opportunity for each ranked candidate, in the supplied order, without changing IDs, scores, or ranks. Consultation preparation must contain 2-5 strings and considerations 1-4 strings. " +
+  "This is a paid, in-depth advisory report the customer is paying for and will read closely, so write comprehensively and specifically: " +
+  "executiveSummary should be 3-5 substantive paragraphs synthesizing the business's overall AI readiness and biggest levers, not a short blurb. " +
+  "whyItMatters and practicalApproach should each be several sentences of concrete, specific reasoning and step-by-step guidance grounded in the intake details, not generic advice. " +
+  "considerations must contain 3-4 specific, non-obvious risks or dependencies. consultationPreparation must contain 4-5 pointed questions. " +
+  "Avoid filler, repetition, and generic AI-strategy platitudes; every sentence should reference something specific from the business's actual intake. " +
+  "headline must be a short, benefit-focused title only (under 100 characters) — the application already displays rank and numeric ratings separately, so do not restate rank, scores, or ratings inside headline.";
 
 // Intake field values are attacker-controlled. `JSON.stringify` escapes `"`
 // and control characters but leaves `<`/`>` untouched, so a field containing
@@ -390,27 +396,27 @@ export function validateReportResponse(
       if (candidateId !== ranked[index]?.id) schema();
       return {
         candidateId,
-        headline: boundedString(entry.headline, 120),
-        whyItMatters: boundedString(entry.whyItMatters, 700),
-        practicalApproach: boundedString(entry.practicalApproach, 900),
-        considerations: boundedStringArray(entry.considerations, 1, 4, 300),
+        headline: boundedString(entry.headline, 140),
+        whyItMatters: boundedString(entry.whyItMatters, 1800),
+        practicalApproach: boundedString(entry.practicalApproach, 2200),
+        considerations: boundedStringArray(entry.considerations, 1, 4, 500),
       };
     },
   );
   return {
-    executiveSummary: boundedString(value.executiveSummary, 1200),
+    executiveSummary: boundedString(value.executiveSummary, 4000),
     recommendedStartingPoint: boundedString(
       value.recommendedStartingPoint,
-      700,
+      2000,
     ),
     opportunities,
     consultationPreparation: boundedStringArray(
       value.consultationPreparation,
       2,
       5,
-      300,
+      400,
     ),
-    closingNote: boundedString(value.closingNote, 500),
+    closingNote: boundedString(value.closingNote, 900),
   };
 }
 

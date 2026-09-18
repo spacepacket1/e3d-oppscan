@@ -5,9 +5,13 @@ import type { ScannerCompletedReport } from "@/lib/scanner-report-store";
 export function ScannerReport({
   record,
   consultationHref,
+  ctaLabel = "Book your included consultation",
+  ctaHelperText = "If booking is not configured, this action opens the established contact page so you can arrange the consultation directly.",
 }: {
   record: ScannerCompletedReport;
   consultationHref: string;
+  ctaLabel?: string;
+  ctaHelperText?: string;
 }) {
   const copyByCandidate = new Map(
     record.report.opportunities.map((item) => [item.candidateId, item]),
@@ -98,12 +102,9 @@ export function ScannerReport({
         </ul>
         <p>{record.report.closingNote}</p>
         <Link className="button button--primary" href={consultationHref}>
-          Book your included consultation
+          {ctaLabel}
         </Link>
-        <p>
-          If booking is not configured, this action opens the established
-          contact page so you can arrange the consultation directly.
-        </p>
+        <p>{ctaHelperText}</p>
       </section>
     </div>
   );

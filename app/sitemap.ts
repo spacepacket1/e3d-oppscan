@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { getCanonicalUrl } from "@/lib/seo";
 
-const sitemapPaths = ["/", "/free"] as const;
+const sitemapPaths = ["/", "/free", "/example"] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return sitemapPaths.map((path) => ({
