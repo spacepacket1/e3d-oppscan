@@ -123,7 +123,7 @@ export async function generateScannerAnalysis(
 ): Promise<ScannerAnalysisResult> {
   void scanId;
   const transport = options.transport ?? createScannerLlmTransport();
-  const timeoutMs = options.timeoutMs ?? 45_000;
+  const timeoutMs = options.timeoutMs ?? getLlmTimeoutMs();
   const envelope = buildUntrustedIntakeEnvelope(values);
   const candidatesText = await callWithTimeout(
     transport,
@@ -192,7 +192,7 @@ export async function generateFreeScannerCandidates(
   options: { transport?: ScannerLlmTransport; timeoutMs?: number } = {},
 ): Promise<RankedScannerCandidate[]> {
   const transport = options.transport ?? createScannerLlmTransport();
-  const timeoutMs = options.timeoutMs ?? 45_000;
+  const timeoutMs = options.timeoutMs ?? getLlmTimeoutMs();
   const envelope = buildFreeUntrustedIntakeEnvelope(values);
   const candidatesText = await callWithTimeout(
     transport,
@@ -281,6 +281,20 @@ export function createScannerLlmTransport(
 
 function getModel() {
   return process.env.SCANNER_LLM_MODEL?.trim() || "scanner-analysis";
+}
+
+// The paid intake flow makes two sequential calls per report; nginx allows
+// 300s end to end (see the oppscan.e3d.ai/applied.futco.ai proxy config),
+// so each call gets well under half that -- 45s was too tight for the
+// "comprehensive report" prompt against gpt-5.6-sol and was timing out the
+// second call in practice.
+const DEFAULT_LLM_TIMEOUT_MS = 120_000;
+
+function getLlmTimeoutMs() {
+  const configured = Number(process.env.SCANNER_LLM_TIMEOUT_MS?.trim());
+  return Number.isFinite(configured) && configured > 0
+    ? configured
+    : DEFAULT_LLM_TIMEOUT_MS;
 }
 
 async function callWithTimeout(
