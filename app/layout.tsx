@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Archivo, IBM_Plex_Mono, Inter } from "next/font/google";
 
@@ -44,8 +45,15 @@ export default function RootLayout({ children }: RootLayoutProps) {
           </a>
           <header className="oppscan-header">
             <div className="container oppscan-header__inner">
-              <Link className="oppscan-header__wordmark" href="/">
-                {siteIdentity.name}
+              <Link className="site-header__brand" href="/">
+                <Image
+                  alt="FutCo"
+                  className="site-header__brand-mark"
+                  height={44}
+                  src="/futco-logo.png"
+                  width={44}
+                />
+                <span className="oppscan-header__wordmark">{siteIdentity.name}</span>
               </Link>
             </div>
           </header>
