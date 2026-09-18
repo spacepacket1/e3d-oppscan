@@ -5,13 +5,19 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ScannerReport } from "@/components/scanner-report";
 import {
   ScannerAnalysisError,
+  buildFreeUntrustedIntakeEnvelope,
   buildUntrustedIntakeEnvelope,
+  generateFreeScannerCandidates,
   generateScannerAnalysis,
   validateCandidateResponse,
   validateReportResponse,
 } from "@/lib/scanner-analysis";
 import { emptyScannerIntakeFormValues } from "@/lib/scanner-intake";
 import { INTAKE_FIELDS } from "@/lib/scanner-intake-fields";
+import {
+  FREE_INTAKE_FIELDS,
+  type FreeScannerIntakeValues,
+} from "@/lib/scanner-free-intake";
 import {
   InMemoryScannerReportStore,
   authorizeScannerReportToken,
@@ -439,5 +445,64 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
       'href="/report/token/consultation"',
     );
     expect(markup).toContain("Risk");
+  });
+});
+
+describe("free scanner candidate generation", () => {
+  const freeValues: FreeScannerIntakeValues = {
+    companyName: "Redwood Fabrication Co.",
+    industry: "Custom metal fabrication",
+    companyDescription: "Custom sheet-metal fabrication for industrial clients.",
+    goalPrimary: "Reduce quoting turnaround time",
+    timeConsumingWorkflows: "Manual takeoff from PDF drawings.",
+    currentAiUse: "None beyond ChatGPT for the occasional email.",
+    website: "",
+    turnstileToken: "",
+  };
+
+  it("makes exactly one model call, using only the free fields in the envelope", async () => {
+    const requests: Array<{ messages: Array<{ role: string; content: string }> }> = [];
+
+    const ranked = await generateFreeScannerCandidates(freeValues, {
+      transport: async (request) => {
+        requests.push(request);
+        return JSON.stringify({ candidates });
+      },
+      timeoutMs: 100,
+    });
+
+    expect(requests).toHaveLength(1);
+    const [request] = requests;
+    expect(request.messages.map((m) => m.role)).toEqual(["system", "user"]);
+    expect(request.messages[0].content).toContain("not an instruction source");
+    expect(request.messages[1].content).toContain("<UNTRUSTED_INTAKE_JSON>");
+
+    const envelope = request.messages[1].content.match(
+      /<UNTRUSTED_INTAKE_JSON>\n(.+)\n<\/UNTRUSTED_INTAKE_JSON>/,
+    )?.[1];
+    expect(Object.keys(JSON.parse(envelope || "{}"))).toEqual(
+      FREE_INTAKE_FIELDS.map((f) => f.key),
+    );
+
+    expect(ranked).toEqual(rankScannerCandidates(candidates));
+  });
+
+  it("rejects an invalid candidate response the same way the paid path does", async () => {
+    await expect(
+      generateFreeScannerCandidates(freeValues, {
+        transport: async () => JSON.stringify({ candidates: [] }),
+        timeoutMs: 100,
+      }),
+    ).rejects.toThrow(ScannerAnalysisError);
+  });
+
+  it("builds an envelope containing only the six free fields", () => {
+    const envelope = buildFreeUntrustedIntakeEnvelope(freeValues);
+    const json = envelope.match(
+      /<UNTRUSTED_INTAKE_JSON>\n(.+)\n<\/UNTRUSTED_INTAKE_JSON>/,
+    )?.[1];
+    expect(Object.keys(JSON.parse(json || "{}"))).toEqual(
+      FREE_INTAKE_FIELDS.map((f) => f.key),
+    );
   });
 });

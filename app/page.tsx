@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { SectionHeading } from "@/components/section-heading";
 import { scannerContent } from "@/content/scanner-content";
@@ -62,6 +63,9 @@ export default async function AiOpportunityScannerPage({
                   {scannerContent.hero.ctaLabel}
                 </button>
               </form>
+              <Link className="button button--secondary" href="/free">
+                Try a free simplified summary first
+              </Link>
             </div>
           </div>
           {notice ? (

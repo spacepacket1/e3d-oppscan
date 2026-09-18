@@ -1,6 +1,10 @@
 import { INTAKE_FIELDS } from "@/lib/scanner-intake-fields";
 import type { ScannerIntakeFormValues } from "@/lib/scanner-intake";
 import {
+  FREE_INTAKE_FIELDS,
+  type FreeScannerIntakeValues,
+} from "@/lib/scanner-free-intake";
+import {
   rankScannerCandidates,
   scannerOutcomeTypes,
   type RankedScannerCandidate,
@@ -145,6 +149,47 @@ export async function generateScannerAnalysis(
     candidates: ranked,
     report: validateReportResponse(parseModelJson(reportText), ranked),
   };
+}
+
+export function buildFreeUntrustedIntakeEnvelope(
+  values: FreeScannerIntakeValues,
+) {
+  const intake = Object.fromEntries(
+    FREE_INTAKE_FIELDS.map((field) => [field.key, values[field.key]]),
+  );
+  const serialized = escapeIntakeJsonForEnvelope(JSON.stringify(intake));
+  return `<UNTRUSTED_INTAKE_JSON>\n${serialized}\n</UNTRUSTED_INTAKE_JSON>`;
+}
+
+// Free-tier teaser: only the candidate-generation call (no report-copy call,
+// no persistence). Reuses the exact same schema/validation/ranking as the
+// paid flow so there is no second LLM contract to review or drift from.
+export async function generateFreeScannerCandidates(
+  values: FreeScannerIntakeValues,
+  options: { transport?: ScannerLlmTransport; timeoutMs?: number } = {},
+): Promise<RankedScannerCandidate[]> {
+  const transport = options.transport ?? createScannerLlmTransport();
+  const timeoutMs = options.timeoutMs ?? 45_000;
+  const envelope = buildFreeUntrustedIntakeEnvelope(values);
+  const candidatesText = await callWithTimeout(
+    transport,
+    {
+      model: getModel(),
+      messages: [
+        {
+          role: "system",
+          content: `${PROMPT_SAFETY} ${CANDIDATE_SCHEMA_INSTRUCTIONS}`,
+        },
+        {
+          role: "user",
+          content: `${envelope}\nGenerate the candidate JSON now.`,
+        },
+      ],
+    },
+    timeoutMs,
+  );
+  const candidates = validateCandidateResponse(parseModelJson(candidatesText));
+  return rankScannerCandidates(candidates);
 }
 
 export function createScannerLlmTransport(
