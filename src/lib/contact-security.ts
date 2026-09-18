@@ -53,18 +53,36 @@ export async function verifyTurnstileToken(token: string, remoteIp?: string) {
     body.set("remoteip", remoteIp);
   }
 
-  const response = await fetch(
-    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-    {
-      method: "POST",
-      body,
-    },
-  );
-
-  if (!response.ok) {
+  let response: Response;
+  try {
+    response = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        method: "POST",
+        body,
+      },
+    );
+  } catch (error) {
+    console.error("Turnstile siteverify request threw:", error);
     return false;
   }
 
-  const result = (await response.json()) as { success?: boolean };
+  if (!response.ok) {
+    console.error(
+      `Turnstile siteverify request failed with status ${response.status}`,
+    );
+    return false;
+  }
+
+  const result = (await response.json()) as {
+    success?: boolean;
+    "error-codes"?: string[];
+  };
+  if (result.success !== true) {
+    console.error(
+      "Turnstile verification rejected a token:",
+      result["error-codes"] ?? [],
+    );
+  }
   return result.success === true;
 }
