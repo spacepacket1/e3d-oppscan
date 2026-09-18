@@ -1,0 +1,38 @@
+{
+  "name": "e3d-oppscan",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=25.8.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --exclude tests/scanner-report-store.mongodb.test.ts",
+    "test:mongo": "vitest run tests/scanner-report-store.mongodb.test.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "mongodb": "^6.21.0",
+    "next": "^16.2.12",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.0",
+    "eslint-config-next": "^16.2.11",
+    "jsdom": "^25.0.1",
+    "prettier": "^3.5.3",
+    "typescript": "^6.0.0",
+    "vitest": "^4.1.10"
+  }
+}
