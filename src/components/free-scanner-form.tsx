@@ -1,13 +1,16 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 
 import {
   FREE_INTAKE_FIELDS,
+  mergeFreeScannerIntakeDraft,
   type FreeScannerFormState,
+  type FreeScannerIntakeDraft,
   type FreeScannerIntakeFieldKey,
+  type FreeScannerIntakeValues,
 } from "@/lib/scanner-free-intake";
 
 type FreeScannerFormProps = {
@@ -19,12 +22,21 @@ type FreeScannerFormProps = {
   turnstileSiteKey?: string;
 };
 
+type PrefillStatus = "idle" | "analyzing" | "done" | "failed";
+
+type PrefillResponse =
+  | { ok: true; draft: FreeScannerIntakeDraft }
+  | { ok: false; reason: string };
+
 export function FreeScannerForm({
   action,
   initialState,
   turnstileSiteKey = "",
 }: FreeScannerFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
+  const [values, setValues] = useState<FreeScannerIntakeValues>(state.values);
+  const [prefillState, setPrefillState] = useState<PrefillStatus>("idle");
+  const [draftedFields, setDraftedFields] = useState<FreeScannerIntakeFieldKey[]>([]);
 
   if (state.status === "success" && state.candidates) {
     return (
@@ -64,30 +76,109 @@ export function FreeScannerForm({
     );
   }
 
+  async function runPrefill() {
+    const website = values.companyWebsite.trim();
+    if (!website) {
+      setPrefillState("failed");
+      return;
+    }
+
+    setPrefillState("analyzing");
+    try {
+      const response = await fetch("/api/free-intake/prefill", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ website }),
+      });
+      const payload = (await response.json()) as PrefillResponse;
+      if (!payload.ok) {
+        setPrefillState("failed");
+        return;
+      }
+      const merged = mergeFreeScannerIntakeDraft(values, payload.draft);
+      setValues(merged.values);
+      setDraftedFields(merged.draftedFields);
+      setPrefillState("done");
+    } catch {
+      setPrefillState("failed");
+    }
+  }
+
   return (
     <form action={formAction} className="contact-form" noValidate>
       <div className="contact-form__header">
         <h2>Business snapshot</h2>
-        <p>Six quick questions — takes about a minute.</p>
+        <p>Analyze your site to draft a few fields, or just fill them in — takes about a minute either way.</p>
       </div>
 
-      {FREE_INTAKE_FIELDS.map((field) => (
+      <Field error={state.errors.companyWebsite} id="companyWebsite" label="Company website">
+        <div className="scanner-intake-prefill">
+          <input
+            id="companyWebsite"
+            maxLength={200}
+            name="companyWebsite"
+            onChange={(event) =>
+              setValues((current) => ({
+                ...current,
+                companyWebsite: event.currentTarget.value,
+              }))
+            }
+            type="url"
+            value={values.companyWebsite}
+          />
+          <div className="scanner-intake-prefill__actions">
+            <button
+              className="button button--secondary button--compact"
+              disabled={prefillState === "analyzing"}
+              onClick={() => void runPrefill()}
+              type="button"
+            >
+              {prefillState === "analyzing" ? "Analyzing..." : "Analyze my site"}
+            </button>
+          </div>
+        </div>
+        {prefillState === "done" && draftedFields.length > 0 ? (
+          <p className="development-note">
+            Drafted {draftedFields.length} field{draftedFields.length === 1 ? "" : "s"} from your
+            site — review and edit below.
+          </p>
+        ) : null}
+        {prefillState === "failed" ? (
+          <p className="development-note">
+            Couldn&apos;t analyze that site — fill in the fields below manually.
+          </p>
+        ) : null}
+      </Field>
+
+      {FREE_INTAKE_FIELDS.filter((field) => field.key !== "companyWebsite").map((field) => (
         <Field error={state.errors[field.key]} id={field.key} key={field.key} label={field.label}>
           {field.input === "textarea" ? (
             <textarea
-              defaultValue={state.values[field.key]}
               id={field.key}
               maxLength={field.maxLength}
               name={field.key}
+              onChange={(event) =>
+                setValues((current) => ({
+                  ...current,
+                  [field.key]: event.currentTarget.value,
+                }))
+              }
               rows={field.rows ?? 4}
+              value={values[field.key]}
             />
           ) : (
             <input
-              defaultValue={state.values[field.key]}
               id={field.key}
               maxLength={field.maxLength}
               name={field.key}
+              onChange={(event) =>
+                setValues((current) => ({
+                  ...current,
+                  [field.key]: event.currentTarget.value,
+                }))
+              }
               type="text"
+              value={values[field.key]}
             />
           )}
         </Field>

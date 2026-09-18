@@ -11,10 +11,10 @@ import {
   type FreeScannerFormState,
 } from "@/lib/scanner-free-intake";
 import {
-  isRateLimited,
   isTrustedServerActionOrigin,
   verifyTurnstileToken,
 } from "@/lib/contact-security";
+import { isFreeAnalysisRateLimited } from "@/lib/scanner-free-rate-limit";
 
 export async function submitFreeScannerIntake(
   _previousState: FreeScannerFormState,
@@ -40,7 +40,7 @@ export async function submitFreeScannerIntake(
     return freeScannerSuccessState(validation.values);
   }
 
-  if (isRateLimited(`free-scan:${clientIp}`)) {
+  if (isFreeAnalysisRateLimited(clientIp)) {
     return freeScannerErrorState(validation.values, {
       form: "Too many free summaries requested. Please try again in a minute.",
     });

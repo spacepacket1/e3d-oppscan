@@ -543,6 +543,7 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
 
 describe("free scanner candidate generation", () => {
   const freeValues: FreeScannerIntakeValues = {
+    companyWebsite: "https://redwoodfab.example.com",
     companyName: "Redwood Fabrication Co.",
     industry: "Custom metal fabrication",
     companyDescription: "Custom sheet-metal fabrication for industrial clients.",

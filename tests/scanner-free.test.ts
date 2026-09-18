@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const headersMock = vi.hoisted(() => vi.fn());
 const securityMocks = vi.hoisted(() => ({
-  isRateLimited: vi.fn(),
   isTrustedServerActionOrigin: vi.fn(),
   verifyTurnstileToken: vi.fn(),
+}));
+const rateLimitMocks = vi.hoisted(() => ({
+  isFreeAnalysisRateLimited: vi.fn(),
 }));
 const analysisMocks = vi.hoisted(() => ({
   generateFreeScannerCandidates: vi.fn(),
@@ -21,6 +23,13 @@ vi.mock("@/lib/contact-security", async () => {
   return { ...actual, ...securityMocks };
 });
 
+vi.mock("@/lib/scanner-free-rate-limit", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/scanner-free-rate-limit")
+  >("@/lib/scanner-free-rate-limit");
+  return { ...actual, ...rateLimitMocks };
+});
+
 vi.mock("@/lib/scanner-analysis", async () => {
   const actual = await vi.importActual<typeof import("@/lib/scanner-analysis")>(
     "@/lib/scanner-analysis",
@@ -33,12 +42,14 @@ import {
   FREE_INTAKE_FIELDS,
   emptyFreeScannerIntakeValues,
   freeScannerIntakeValuesFromFormData,
+  mergeFreeScannerIntakeDraft,
   validateFreeScannerIntakeValues,
   type FreeScannerIntakeValues,
 } from "@/lib/scanner-free-intake";
 import { rankScannerCandidates } from "@/lib/scanner-scoring";
 
 const validValues: FreeScannerIntakeValues = {
+  companyWebsite: "https://redwoodfab.example.com",
   companyName: "Redwood Fabrication Co.",
   industry: "Custom metal fabrication",
   companyDescription: "Custom sheet-metal fabrication for industrial clients.",
@@ -73,7 +84,7 @@ const candidates = Array.from({ length: 6 }, (_, index) => ({
 }));
 
 describe("free scanner intake parsing and validation", () => {
-  it("parses form data into the six free fields plus honeypot/turnstile", () => {
+  it("parses form data into the seven free fields plus honeypot/turnstile", () => {
     const formData = buildFormData({ turnstileToken: "hidden" });
     formData.set("cf-turnstile-response", "turnstile-response-token");
 
@@ -104,6 +115,52 @@ describe("free scanner intake parsing and validation", () => {
     expect(result.isValid).toBe(true);
     expect(result.errors).toEqual({});
   });
+
+  it("rejects an invalid companyWebsite URL", () => {
+    const result = validateFreeScannerIntakeValues({
+      ...validValues,
+      companyWebsite: "not a url",
+    });
+    expect(result.errors.companyWebsite).toMatch(/valid website URL/);
+  });
+});
+
+describe("mergeFreeScannerIntakeDraft", () => {
+  it("fills only the three prefillable fields, never overwriting typed values", () => {
+    const merged = mergeFreeScannerIntakeDraft(
+      { ...emptyFreeScannerIntakeValues, companyWebsite: "https://acme.example" },
+      {
+        companyName: "Acme Logistics",
+        industry: "Logistics",
+        companyDescription: "Moves boxes.",
+      },
+    );
+    expect(merged.values.companyName).toBe("Acme Logistics");
+    expect(merged.values.industry).toBe("Logistics");
+    expect(merged.values.companyDescription).toBe("Moves boxes.");
+    expect(merged.draftedFields.sort()).toEqual(
+      ["companyName", "companyDescription", "industry"].sort(),
+    );
+  });
+
+  it("does not overwrite a field the person already typed", () => {
+    const merged = mergeFreeScannerIntakeDraft(
+      { ...emptyFreeScannerIntakeValues, companyName: "Already Typed Co" },
+      { companyName: "Acme Logistics", industry: "Logistics" },
+    );
+    expect(merged.values.companyName).toBe("Already Typed Co");
+    expect(merged.values.industry).toBe("Logistics");
+    expect(merged.draftedFields).toEqual(["industry"]);
+  });
+
+  it("ignores null draft values and fields outside the prefillable set", () => {
+    const merged = mergeFreeScannerIntakeDraft(emptyFreeScannerIntakeValues, {
+      companyName: null,
+      industry: "Logistics",
+    });
+    expect(merged.values.companyName).toBe("");
+    expect(merged.draftedFields).toEqual(["industry"]);
+  });
 });
 
 describe("submitFreeScannerIntake action", () => {
@@ -115,7 +172,7 @@ describe("submitFreeScannerIntake action", () => {
       }),
     );
     securityMocks.isTrustedServerActionOrigin.mockReturnValue(true);
-    securityMocks.isRateLimited.mockReturnValue(false);
+    rateLimitMocks.isFreeAnalysisRateLimited.mockReturnValue(false);
     securityMocks.verifyTurnstileToken.mockResolvedValue(true);
     analysisMocks.generateFreeScannerCandidates.mockResolvedValue(
       rankScannerCandidates(candidates),
@@ -136,7 +193,7 @@ describe("submitFreeScannerIntake action", () => {
 
     expect(result.status).toBe("error");
     expect(result.errors.form).toMatch(/could not be verified/);
-    expect(securityMocks.isRateLimited).not.toHaveBeenCalled();
+    expect(rateLimitMocks.isFreeAnalysisRateLimited).not.toHaveBeenCalled();
     expect(analysisMocks.generateFreeScannerCandidates).not.toHaveBeenCalled();
   });
 
@@ -148,12 +205,12 @@ describe("submitFreeScannerIntake action", () => {
 
     expect(result.status).toBe("success");
     expect(result.candidates).toBeUndefined();
-    expect(securityMocks.isRateLimited).not.toHaveBeenCalled();
+    expect(rateLimitMocks.isFreeAnalysisRateLimited).not.toHaveBeenCalled();
     expect(analysisMocks.generateFreeScannerCandidates).not.toHaveBeenCalled();
   });
 
   it("rejects when rate-limited without generating", async () => {
-    securityMocks.isRateLimited.mockReturnValue(true);
+    rateLimitMocks.isFreeAnalysisRateLimited.mockReturnValue(true);
 
     const result = await submitFreeScannerIntake(
       { status: "idle", values: emptyFreeScannerIntakeValues, errors: {} },
