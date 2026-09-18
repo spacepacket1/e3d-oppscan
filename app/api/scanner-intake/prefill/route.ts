@@ -38,11 +38,13 @@ export async function POST(request: Request) {
   const cookieStore = await cookies();
   const creditKey = cookieStore.get(SCANNER_CREDIT_KEY_COOKIE)?.value?.trim() || "";
   if (!creditKey) {
+    console.error("Scanner intake prefill rejected: no credit key cookie present.");
     return NextResponse.json({ ok: false, reason: "invalid_key" }, { status: 401 });
   }
 
   const internalServiceKey = process.env.E3D_SCANNER_INTERNAL_SERVICE_KEY?.trim() || "";
   if (!internalServiceKey) {
+    console.error("Scanner intake prefill rejected: E3D_SCANNER_INTERNAL_SERVICE_KEY is not configured.");
     return NextResponse.json({ ok: false, reason: "service_unavailable" }, { status: 500 });
   }
 
@@ -61,18 +63,30 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({ creditKey, website }),
     });
-  } catch {
+  } catch (error) {
+    console.error("Scanner intake prefill: upstream fetch threw:", endpointUrl, error);
     return NextResponse.json({ ok: false, reason: "network_error" }, { status: 502 });
   }
 
   let upstreamPayload: UpstreamPrefillResponse;
   try {
     upstreamPayload = (await response.json()) as UpstreamPrefillResponse;
-  } catch {
+  } catch (error) {
+    console.error(
+      "Scanner intake prefill: upstream response was not valid JSON, status",
+      response.status,
+      error,
+    );
     return NextResponse.json({ ok: false, reason: "prefill_failed" }, { status: 502 });
   }
 
   if (!response.ok || !upstreamPayload.ok) {
+    console.error(
+      "Scanner intake prefill: upstream rejected the request, status",
+      response.status,
+      "payload",
+      upstreamPayload,
+    );
     return NextResponse.json({
       ok: false,
       reason:
