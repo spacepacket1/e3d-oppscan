@@ -47,7 +47,6 @@ export default async function AiOpportunityScannerPage({
               align="left"
               as="h1"
               description={scannerContent.hero.description}
-              eyebrow={scannerContent.hero.eyebrow}
               title={scannerContent.hero.heading}
               titleId="page-title"
             />

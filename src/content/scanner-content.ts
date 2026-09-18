@@ -1,6 +1,5 @@
 export const scannerContent = {
   hero: {
-    eyebrow: "MANUAL V0 OFFER",
     heading:
       "Get a practical AI opportunity scan before you commit to a larger build.",
     description:
