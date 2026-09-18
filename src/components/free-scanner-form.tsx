@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 
@@ -12,6 +12,9 @@ import {
   type FreeScannerIntakeFieldKey,
   type FreeScannerIntakeValues,
 } from "@/lib/scanner-free-intake";
+import { resetTurnstileWidget } from "@/lib/turnstile-widget";
+
+const TURNSTILE_WIDGET_ID = "free-scanner-turnstile";
 
 type FreeScannerFormProps = {
   action: (
@@ -37,6 +40,14 @@ export function FreeScannerForm({
   const [values, setValues] = useState<FreeScannerIntakeValues>(state.values);
   const [prefillState, setPrefillState] = useState<PrefillStatus>("idle");
   const [draftedFields, setDraftedFields] = useState<FreeScannerIntakeFieldKey[]>([]);
+
+  // A stale or already-verified Turnstile token left in the widget after a
+  // failed submission would fail the same way on a plain resubmit, so force
+  // a fresh challenge/token any time the server rejects the form.
+  useEffect(() => {
+    if (state.status !== "error") return;
+    resetTurnstileWidget(TURNSTILE_WIDGET_ID);
+  }, [state]);
 
   if (state.status === "success" && state.candidates) {
     return (
@@ -201,6 +212,7 @@ export function FreeScannerForm({
           aria-label="Bot protection"
           className="cf-turnstile"
           data-sitekey={turnstileSiteKey}
+          id={TURNSTILE_WIDGET_ID}
         />
       ) : null}
 

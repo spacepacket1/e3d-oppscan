@@ -24,6 +24,9 @@ import {
 } from "@/lib/scanner-intake-prefill";
 import { INTAKE_FIELDS, type IntakeField } from "@/lib/scanner-intake-fields";
 import { SCANNER_CREDIT_KEY_STORAGE_KEY } from "@/lib/scanner-intake-session";
+import { resetTurnstileWidget } from "@/lib/turnstile-widget";
+
+const TURNSTILE_WIDGET_ID = "scanner-intake-turnstile";
 
 const groupLabels = {
   company: "Company",
@@ -161,6 +164,14 @@ export function ScannerIntakeForm({
     }
     window.localStorage.removeItem(SCANNER_CREDIT_KEY_STORAGE_KEY);
   }, [state.status, state.reportUrl]);
+
+  // A stale or already-verified Turnstile token left in the widget after a
+  // failed submission would fail the same way on a plain resubmit, so force
+  // a fresh challenge/token any time the server rejects the form.
+  useEffect(() => {
+    if (state.status !== "error") return;
+    resetTurnstileWidget(TURNSTILE_WIDGET_ID);
+  }, [state]);
 
   async function claimStripeSession(sessionId: string) {
     setAccessState({
@@ -577,6 +588,7 @@ export function ScannerIntakeForm({
               aria-label="Bot protection"
               className="cf-turnstile"
               data-sitekey={turnstileSiteKey}
+              id={TURNSTILE_WIDGET_ID}
             />
           ) : null}
 
