@@ -58,6 +58,7 @@ function completionFor(ranked: ReturnType<typeof rankScannerCandidates>) {
     report: reportFor(ranked),
     baseScore: 40,
     potentialScore: 70,
+    checkoutEmail: "buyer@example.com",
   };
 }
 

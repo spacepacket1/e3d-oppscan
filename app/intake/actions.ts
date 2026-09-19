@@ -175,8 +175,11 @@ export async function orchestrateScannerIntake(
   let analysisStarted = false;
   try {
     const settled = await store.hasSettledSpend(scanId);
+    // Needed for completeReport's checkoutEmail below on every path,
+    // including a retry of an already-settled spend (e.g. after a prior
+    // attempt's generation timed out) -- not just the first-time branch.
+    const checkoutContext = await getScannerCheckoutContext(values.creditKey);
     if (!settled) {
-      const checkoutContext = await getScannerCheckoutContext(values.creditKey);
       if (checkoutContext.customerEmail !== values.deliveryEmail) {
         await safeRelease(store, scanId, ownerId);
         return scannerIntakeErrorState(values, {
@@ -243,7 +246,7 @@ export async function orchestrateScannerIntake(
       completed = await store.completeReport(
         scanId,
         ownerId,
-        analysis,
+        { ...analysis, checkoutEmail: checkoutContext.customerEmail },
         hashReportAccessToken(token),
         completedAt,
       );

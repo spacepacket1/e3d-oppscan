@@ -1,14 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 const notFound = vi.hoisted(() => vi.fn(() => { throw new Error("NOT_FOUND"); }));
-vi.mock("next/navigation", () => ({ notFound }));
+vi.mock("next/navigation", () => ({ notFound, redirect: vi.fn() }));
+
+// Minimal in-memory stand-in for next/headers' cookies() -- enough for this
+// module's get/set usage. Real cookie semantics (expiry, domain, etc.) are
+// irrelevant here; the tests only need get() to see what set() last wrote.
+const cookieJar = vi.hoisted(() => new Map<string, string>());
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) =>
+      cookieJar.has(name) ? { name, value: cookieJar.get(name)! } : undefined,
+    set: (name: string, value: string) => {
+      cookieJar.set(name, value);
+    },
+  }),
+}));
 
 import ScannerReportPage from "../app/report/[token]/page";
 import { GET as consultation } from "../app/report/[token]/consultation/route";
 import {
   InMemoryScannerReportStore,
   deriveReportAccessToken,
+  deriveReportEmailProof,
   hashReportAccessToken,
+  reportEmailCookieName,
   setScannerReportStoreForTests,
 } from "@/lib/scanner-report-store";
 import {
@@ -16,11 +32,14 @@ import {
   type ScannerTelemetryEvent,
 } from "@/lib/scanner-telemetry";
 
+const CHECKOUT_EMAIL = "buyer@example.com";
+
 describe("scanner report authorization and telemetry", () => {
   let token: string;
   let telemetry: Mock<(event: ScannerTelemetryEvent) => void>;
 
   beforeEach(async () => {
+    cookieJar.clear();
     vi.stubEnv("SCANNER_REPORT_TOKEN_SECRET", "test-scanner-report-token-secret-32-bytes");
     const store = new InMemoryScannerReportStore();
     const scanId = "scan_authorized_customer";
@@ -40,7 +59,15 @@ describe("scanner report authorization and telemetry", () => {
       },
       baseScore: 50,
       potentialScore: 60,
+      checkoutEmail: CHECKOUT_EMAIL,
     }, hashReportAccessToken(token), "2026-09-10T00:00:00.000Z");
+    // Simulates having already passed the email-confirmation gate, so these
+    // authorization/telemetry tests can focus on what they're actually
+    // testing rather than re-proving the gate itself on every case.
+    cookieJar.set(
+      reportEmailCookieName(),
+      deriveReportEmailProof(scanId, CHECKOUT_EMAIL),
+    );
     telemetry = vi.fn();
     setScannerReportStoreForTests(store);
     setScannerTelemetrySinkForTests(telemetry);
@@ -51,6 +78,7 @@ describe("scanner report authorization and telemetry", () => {
     setScannerTelemetrySinkForTests(undefined);
     vi.unstubAllEnvs();
     notFound.mockClear();
+    cookieJar.clear();
   });
 
   it("emits one authorized view and one configured booking click", async () => {

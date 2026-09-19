@@ -24,10 +24,12 @@ type ScannerReportDocument = {
   completed?: true;
   tokenHash?: string;
   completedAt?: Date;
+  checkoutEmail?: string;
   candidates?: RankedScannerCandidate[];
   report?: ScannerReportCopy;
   baseScore?: number;
   potentialScore?: number;
+  revoked?: boolean;
   telemetryEvents?: Record<string, Date>;
 };
 
@@ -71,8 +73,17 @@ export class MongoScannerReportStore implements ScannerReportStore {
 
   async getByTokenHash(tokenHash: string) {
     const collection = await this.getCollection();
-    const document = await collection.findOne({ tokenHash, completed: true });
+    const document = await collection.findOne({
+      tokenHash,
+      completed: true,
+      revoked: { $ne: true },
+    });
     return document ? completedReportFromDocument(document) : null;
+  }
+
+  async setReportRevoked(scanId: string, revoked: boolean) {
+    const collection = await this.getCollection();
+    await collection.updateOne({ _id: scanId }, { $set: { revoked } });
   }
 
   async acquireGenerationLease(
@@ -187,6 +198,7 @@ export class MongoScannerReportStore implements ScannerReportStore {
           completed: true,
           tokenHash,
           completedAt: new Date(completedAt),
+          checkoutEmail: input.checkoutEmail,
           candidates: structuredClone(input.candidates),
           report: structuredClone(input.report),
           baseScore: input.baseScore,
@@ -319,6 +331,7 @@ function completedReportFromDocument(
     document.completed !== true ||
     !document.tokenHash ||
     !document.completedAt ||
+    !document.checkoutEmail ||
     !document.candidates ||
     !document.report ||
     typeof document.baseScore !== "number" ||
@@ -334,6 +347,7 @@ function completedReportFromDocument(
       : {}),
     completedAt: document.completedAt.toISOString(),
     tokenHash: document.tokenHash,
+    checkoutEmail: document.checkoutEmail,
     candidates: structuredClone(document.candidates),
     report: structuredClone(document.report),
     baseScore: document.baseScore,

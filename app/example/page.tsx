@@ -30,6 +30,7 @@ const exampleRecord = {
   scanId: "scan_example",
   completedAt: "2026-09-18T00:00:00.000Z",
   tokenHash: "0".repeat(64),
+  checkoutEmail: "example@futco.ai",
   candidates: exampleRankedCandidates,
   report: exampleReport,
   baseScore: exampleBaseScore,

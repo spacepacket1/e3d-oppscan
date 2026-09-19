@@ -51,6 +51,7 @@ const completion: ScannerReportCompletionInput = {
   },
   baseScore: 50,
   potentialScore: 60,
+  checkoutEmail: "buyer@example.com",
 };
 
 const client = new MongoClient(MONGO_URL, { serverSelectionTimeoutMS: 10_000 });

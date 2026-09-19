@@ -21,6 +21,21 @@ function PracticalApproach({ steps }: { steps: string[] | string }) {
   );
 }
 
+// The model already writes multi-paragraph fields (executiveSummary in
+// particular) with blank-line-separated paragraphs, but a single <p> with
+// the raw string collapses those breaks under normal HTML whitespace rules
+// -- rendering one dense block instead of the paragraphs the model wrote.
+function Paragraphs({ text }: { text: string }) {
+  const paragraphs = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  return (
+    <>
+      {paragraphs.map((paragraph) => (
+        <p key={paragraph}>{paragraph}</p>
+      ))}
+    </>
+  );
+}
+
 export function ScannerReport({
   record,
   consultationHref,
@@ -63,9 +78,9 @@ export function ScannerReport({
       </section>
       <section className="content-panel">
         <h2>Executive summary</h2>
-        <p>{record.report.executiveSummary}</p>
+        <Paragraphs text={record.report.executiveSummary} />
         <h3>Recommended starting point</h3>
-        <p>{record.report.recommendedStartingPoint}</p>
+        <Paragraphs text={record.report.recommendedStartingPoint} />
       </section>
       <section className="content-panel">
         <h2>AI Opportunities</h2>
@@ -146,7 +161,7 @@ export function ScannerReport({
               </div>
             </dl>
             <h3>Why it matters</h3>
-            <p>{copy.whyItMatters}</p>
+            <Paragraphs text={copy.whyItMatters} />
             <h3>Evidence</h3>
             <ul>
               {candidate.evidence.map((item) => (

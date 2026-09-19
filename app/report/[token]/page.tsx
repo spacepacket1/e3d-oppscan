@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { ScannerReport } from "@/components/scanner-report";
 import {
   authorizeScannerReportToken,
   getScannerReportStore,
+  reportEmailCookieName,
+  reportEmailProofMatches,
 } from "@/lib/scanner-report-store";
 import { claimAndEmitScannerTelemetry } from "@/lib/scanner-telemetry";
+
+import { verifyReportEmail } from "./actions";
+import { ReportEmailGate } from "./report-email-gate";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -23,6 +29,16 @@ export default async function ScannerReportPage({
   const authorized = await loadAuthorizedReport(token);
   if (!authorized) notFound();
   const { store, record } = authorized;
+
+  const cookieStore = await cookies();
+  const emailProof = cookieStore.get(reportEmailCookieName())?.value || "";
+  const emailVerified =
+    emailProof &&
+    reportEmailProofMatches(record.scanId, record.checkoutEmail, emailProof);
+  if (!emailVerified) {
+    return <ReportEmailGate action={verifyReportEmail.bind(null, token)} />;
+  }
+
   try {
     await claimAndEmitScannerTelemetry(store, {
       scanId: record.scanId,

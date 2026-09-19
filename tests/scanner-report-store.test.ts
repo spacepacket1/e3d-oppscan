@@ -38,6 +38,7 @@ const completion: ScannerReportCompletionInput = {
   },
   baseScore: 50,
   potentialScore: 60,
+  checkoutEmail: "buyer@example.com",
 };
 
 afterEach(() => {
@@ -176,6 +177,7 @@ describe("MongoScannerReportStore", () => {
     expect(collection.findOne).toHaveBeenNthCalledWith(2, {
       tokenHash: "token-hash",
       completed: true,
+      revoked: { $ne: true },
     });
   });
 

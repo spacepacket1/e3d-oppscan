@@ -14,6 +14,10 @@ export type ScannerCompletedReport = {
   settledSpendAt?: string;
   completedAt: string;
   tokenHash: string;
+  // The checkout email is required to view the report (see
+  // authorizeScannerReportEmail below) -- the token alone is not enough,
+  // since a leaked/forwarded link should not by itself grant access.
+  checkoutEmail: string;
   candidates: RankedScannerCandidate[];
   report: ScannerReportCopy;
   // Application-computed AI maturity score (0-100) and the score a
@@ -25,7 +29,7 @@ export type ScannerCompletedReport = {
 
 export type ScannerReportCompletionInput = Pick<
   ScannerCompletedReport,
-  "candidates" | "report" | "baseScore" | "potentialScore"
+  "candidates" | "report" | "baseScore" | "potentialScore" | "checkoutEmail"
 >;
 
 export interface ScannerReportStore {
@@ -48,6 +52,13 @@ export interface ScannerReportStore {
     completedAt: string,
   ): Promise<ScannerCompletedReport>;
   claimTelemetryEvent(scanId: string, eventName: string): Promise<boolean>;
+  // Revoking a specific scan's link makes getByTokenHash treat it as not
+  // found (report page and consultation redirect both 404) without
+  // affecting any other report -- there is no per-report secret to rotate,
+  // only one global SCANNER_REPORT_TOKEN_SECRET shared by every report, so
+  // this is the only way to kill one specific leaked/forwarded link.
+  // Reversible: setReportRevoked(scanId, false) restores access.
+  setReportRevoked(scanId: string, revoked: boolean): Promise<void>;
 }
 
 let testStore: ScannerReportStore | undefined;
@@ -153,10 +164,57 @@ export async function authorizeScannerReportToken(
   return record;
 }
 
+export function normalizeReportEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+// A fixed name is fine (not per-token) because the cookie is always set
+// scoped to this specific report's own path (/report/<token>), so the
+// browser never sends it for a different report's path regardless of name.
+export function reportEmailCookieName() {
+  return "scanner_report_email_verified";
+}
+
+// A separate proof from deriveReportAccessToken (different namespace
+// string, same secret) that the visitor already confirmed the checkout
+// email for this specific scan. Stored in a cookie scoped to this report's
+// own path -- unforgeable without the server secret, so a visitor can't
+// just fabricate the cookie to skip the email check.
+export function deriveReportEmailProof(scanId: string, checkoutEmail: string) {
+  const secret = process.env.SCANNER_REPORT_TOKEN_SECRET?.trim() || "";
+  if (!secret) throw new Error("Scanner report access is not configured.");
+  return createHmac("sha256", secret)
+    .update(
+      `scanner-report-email:${scanId}:${normalizeReportEmail(checkoutEmail)}`,
+      "utf8",
+    )
+    .digest("base64url");
+}
+
+export function reportEmailProofMatches(
+  scanId: string,
+  checkoutEmail: string,
+  proof: string,
+) {
+  let expected: string;
+  try {
+    expected = deriveReportEmailProof(scanId, checkoutEmail);
+  } catch {
+    return false;
+  }
+  const actualBuffer = Buffer.from(proof, "utf8");
+  const expectedBuffer = Buffer.from(expected, "utf8");
+  return (
+    actualBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(actualBuffer, expectedBuffer)
+  );
+}
+
 type MemoryRecord = {
   lease?: { ownerId: string; expiresAt: number };
   settledSpendAt?: string;
   completed?: ScannerCompletedReport;
+  revoked?: boolean;
   events: Set<string>;
 };
 
@@ -169,9 +227,14 @@ export class InMemoryScannerReportStore implements ScannerReportStore {
   }
   async getByTokenHash(tokenHash: string) {
     for (const entry of this.records.values()) {
+      if (entry.revoked) continue;
       if (entry.completed?.tokenHash === tokenHash) return entry.completed;
     }
     return null;
+  }
+  async setReportRevoked(scanId: string, revoked: boolean) {
+    const record = this.ensure(scanId);
+    record.revoked = revoked;
   }
   async acquireGenerationLease(
     scanId: string,
@@ -220,6 +283,7 @@ export class InMemoryScannerReportStore implements ScannerReportStore {
         : {}),
       completedAt,
       tokenHash,
+      checkoutEmail: input.checkoutEmail,
       candidates: structuredClone(input.candidates),
       report: structuredClone(input.report),
       baseScore: input.baseScore,
