@@ -7,10 +7,12 @@ import {
 
 import type { ScannerReportCopy } from "@/lib/scanner-analysis";
 import type { RankedScannerCandidate } from "@/lib/scanner-scoring";
-import type {
-  ScannerCompletedReport,
-  ScannerReportCompletionInput,
-  ScannerReportStore,
+import {
+  normalizeReportEmail,
+  type ScannerCompletedReport,
+  type ScannerReportCompletionInput,
+  type ScannerReportForAdmin,
+  type ScannerReportStore,
 } from "@/lib/scanner-report-store";
 
 const MAJORITY_WRITE_CONCERN = { w: "majority" as const };
@@ -84,6 +86,30 @@ export class MongoScannerReportStore implements ScannerReportStore {
   async setReportRevoked(scanId: string, revoked: boolean) {
     const collection = await this.getCollection();
     await collection.updateOne({ _id: scanId }, { $set: { revoked } });
+  }
+
+  async listReportsByCheckoutEmail(email: string) {
+    const collection = await this.getCollection();
+    const documents = await collection
+      .find({
+        completed: true,
+        revoked: { $ne: true },
+        checkoutEmail: {
+          $regex: `^${escapeRegExp(normalizeReportEmail(email))}$`,
+          $options: "i",
+        },
+      })
+      .toArray();
+    return documents.map(completedReportFromDocument);
+  }
+
+  async listAllReportsForAdmin(): Promise<ScannerReportForAdmin[]> {
+    const collection = await this.getCollection();
+    const documents = await collection.find({ completed: true }).toArray();
+    return documents.map((document) => ({
+      ...completedReportFromDocument(document),
+      revoked: document.revoked === true,
+    }));
   }
 
   async acquireGenerationLease(
@@ -284,6 +310,13 @@ export function createMongoScannerReportStore(
 // never surfaced back to any caller (completedReportFromDocument omits it).
 function telemetryFieldKey(eventName: string): string {
   return Buffer.from(eventName, "utf8").toString("hex");
+}
+
+// Escapes a string for safe interpolation into a Mongo $regex pattern --
+// used for a case-insensitive exact-match lookup, not partial search, so
+// every regex metacharacter in the input must be treated literally.
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function availableLeaseFilter(

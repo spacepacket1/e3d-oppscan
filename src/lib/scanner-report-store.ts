@@ -32,6 +32,10 @@ export type ScannerReportCompletionInput = Pick<
   "candidates" | "report" | "baseScore" | "potentialScore" | "checkoutEmail"
 >;
 
+export type ScannerReportForAdmin = ScannerCompletedReport & {
+  revoked: boolean;
+};
+
 export interface ScannerReportStore {
   getByScanId(scanId: string): Promise<ScannerCompletedReport | null>;
   getByTokenHash(tokenHash: string): Promise<ScannerCompletedReport | null>;
@@ -59,6 +63,13 @@ export interface ScannerReportStore {
   // this is the only way to kill one specific leaked/forwarded link.
   // Reversible: setReportRevoked(scanId, false) restores access.
   setReportRevoked(scanId: string, revoked: boolean): Promise<void>;
+  // For the customer-facing "your reports" account page. Case-insensitive,
+  // excludes revoked reports (same as getByTokenHash).
+  listReportsByCheckoutEmail(email: string): Promise<ScannerCompletedReport[]>;
+  // For the FutCo admin listing only -- includes revoked reports (with
+  // `revoked` exposed so the admin UI can show and toggle it), unlike every
+  // other read path in this interface.
+  listAllReportsForAdmin(): Promise<ScannerReportForAdmin[]>;
 }
 
 let testStore: ScannerReportStore | undefined;
@@ -235,6 +246,26 @@ export class InMemoryScannerReportStore implements ScannerReportStore {
   async setReportRevoked(scanId: string, revoked: boolean) {
     const record = this.ensure(scanId);
     record.revoked = revoked;
+  }
+  async listReportsByCheckoutEmail(email: string) {
+    const normalized = normalizeReportEmail(email);
+    const results: ScannerCompletedReport[] = [];
+    for (const entry of this.records.values()) {
+      if (entry.revoked || !entry.completed) continue;
+      if (normalizeReportEmail(entry.completed.checkoutEmail) === normalized) {
+        results.push(entry.completed);
+      }
+    }
+    return results;
+  }
+  async listAllReportsForAdmin() {
+    const results: ScannerReportForAdmin[] = [];
+    for (const entry of this.records.values()) {
+      if (entry.completed) {
+        results.push({ ...entry.completed, revoked: Boolean(entry.revoked) });
+      }
+    }
+    return results;
   }
   async acquireGenerationLease(
     scanId: string,
