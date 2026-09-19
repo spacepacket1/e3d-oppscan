@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 
 import { E3dLoginForm } from "@/components/e3d-login-form";
+import { E3dLogoutButton } from "@/components/e3d-logout-button";
 import { getE3dSessionUser } from "@/lib/e3d-session";
 import {
   buildReportUrl,
@@ -66,6 +67,7 @@ export default async function AccountPage() {
           <div className="content-panel">
             <h1>Your reports</h1>
             <p>Signed in as {session.email}.</p>
+            <E3dLogoutButton />
             {reports.length === 0 ? (
               <p>No completed scanner reports are on file for this email yet.</p>
             ) : (
