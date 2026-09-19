@@ -1380,7 +1380,7 @@ function buildAnalysisResult() {
         candidateId: candidate.id,
         headline: candidate.title,
         whyItMatters: "It supports the stated goals.",
-        practicalApproach: "Start with a bounded pilot.",
+        practicalApproach: ["Start with a bounded pilot."],
         considerations: ["Keep a human review step."],
       })),
       consultationPreparation: [

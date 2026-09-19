@@ -187,8 +187,14 @@ export const exampleReport: ScannerReportCopy = {
       headline: "Turn PDF drawings into review-ready estimating data",
       whyItMatters:
         "Reading and measuring PDF drawings is one of the most labor-intensive parts of Redwood's current quoting process. Extracting dimensions, material, thickness, quantity, tolerances, finish requirements, and fabrication notes into a consistent review form could reduce transcription and repeated page scanning while allowing the estimator to focus on manufacturability and exceptions. This is especially relevant across Redwood's mix of brackets, enclosures, and weldments, where several common fields recur even though each job is custom. The largest benefit will come from presenting extracted values as suggestions with traceable drawing references, not from allowing software to price directly from an unverified drawing.",
-      practicalApproach:
-        "Collect 30 representative drawing packages, including clean vector PDFs, scanned files, multi-page assemblies, revision-heavy drawings, and examples with general notes. Define the exact fields needed by the quote workbook and label each as required, optional, calculated, or estimator-only; then create a benchmark answer set by having an experienced estimator record the correct values. Pilot extraction into a review screen that displays the proposed value, confidence, page number, and highlighted source region. Require confirmation for pricing-sensitive items such as tolerances, material specifications, thickness, finish, weld symbols, quantities, and revision status. Measure field-level accuracy and estimator review time before integrating approved values with Excel, and initially limit deployment to the drawing types that perform reliably.",
+      practicalApproach: [
+        "Collect 30 representative drawing packages, including clean vector PDFs, scanned files, multi-page assemblies, revision-heavy drawings, and examples with general notes.",
+        "Define the exact fields needed by the quote workbook and label each as required, optional, calculated, or estimator-only.",
+        "Create a benchmark answer set by having an experienced estimator record the correct values for those fields.",
+        "Pilot extraction into a review screen that displays the proposed value, confidence, page number, and highlighted source region.",
+        "Require confirmation for pricing-sensitive items such as tolerances, material specifications, thickness, finish, weld symbols, quantities, and revision status.",
+        "Measure field-level accuracy and estimator review time before integrating approved values with Excel, limiting initial deployment to the drawing types that perform reliably.",
+      ],
       considerations: [
         "Dimensions visible on a drawing may not be sufficient for pricing if scale, revision status, units, title-block precedence, or referenced specifications are unclear.",
         "Tolerance blocks, weld symbols, bend notes, and finish callouts can change process requirements materially even when the main geometry appears simple.",
@@ -201,8 +207,13 @@ export const exampleReport: ScannerReportCopy = {
       headline: "Eliminate quote delays caused by incomplete requests",
       whyItMatters:
         "A fast estimator cannot complete a defensible quote when quantities, materials, finishes, tolerances, target dates, or current drawings are missing. Redwood's custom industrial work makes these omissions costly because each follow-up interrupts the estimator and extends elapsed turnaround even if the actual estimating time is short. A standardized intake process would expose incomplete requests immediately and give customers or internal staff a clear definition of quote-ready information. Redwood's single-shop, 22-person structure makes it practical to adopt one shared checklist without coordinating multiple sites or conflicting local procedures.",
-      practicalApproach:
-        "Review recent quote delays and record the missing or corrected information that triggered each customer follow-up. Convert the most common gaps into a one-page form covering contact details, drawing revision, part and assembly quantities, material and thickness, finish, tolerance exceptions, certification requirements, delivery destination, requested date, and whether tooling or customer-supplied material is involved. Separate truly required fields from conditional questions so simple bracket requests are not burdened with irrelevant prompts. Route incomplete requests to a visible pending-information queue and allow estimator-approved exceptions when a preliminary budgetary quote is appropriate. After a short internal pilot, measure the percentage of requests complete on first receipt and the number of clarification contacts per quote.",
+      practicalApproach: [
+        "Review recent quote delays and record the missing or corrected information that triggered each customer follow-up.",
+        "Convert the most common gaps into a one-page form covering contact details, drawing revision, part and assembly quantities, material and thickness, finish, tolerance exceptions, certification requirements, delivery destination, requested date, and whether tooling or customer-supplied material is involved.",
+        "Separate truly required fields from conditional questions so simple bracket requests are not burdened with irrelevant prompts.",
+        "Route incomplete requests to a visible pending-information queue and allow estimator-approved exceptions when a preliminary budgetary quote is appropriate.",
+        "After a short internal pilot, measure the percentage of requests complete on first receipt and the number of clarification contacts per quote.",
+      ],
       considerations: [
         "Making every field mandatory could frustrate customers seeking early budget pricing, so Redwood should distinguish budgetary estimates from production-ready quotations.",
         "Long-standing customers may continue emailing drawings directly; an internal intake step must capture their information without creating a service barrier.",
@@ -215,8 +226,13 @@ export const exampleReport: ScannerReportCopy = {
       headline: "Build consistent quotes without rebuilding spreadsheets",
       whyItMatters:
         "Redwood currently builds Excel quotes one at a time, even though material, setup, machine, welding, finishing, overhead, margin, and lead-time calculations recur across jobs. A controlled workbook can preserve the estimator's familiar tool while removing repetitive formula construction and reducing the chance that a rate, markup, or cost category is omitted. It can also make assumptions and manual overrides visible, which is essential when quoting custom work rather than standard catalog parts. This opportunity directly addresses turnaround and creates a stable destination for data from future intake forms and drawing extraction.",
-      practicalApproach:
-        "Select 20 completed quotes across Redwood's main job types and map every recurring input, calculation, rate table, exception, and approval step. Build protected input sections for customer requirements and fabrication features, separate rate tables from job-specific assumptions, and calculate material utilization, setup, cutting, forming, welding, finishing, outside services, overhead, margin, and quantity breaks in distinct auditable sections. Include explicit fields for uncertainty, minimum charges, scrap assumptions, expedite premiums, and estimator overrides with reasons. Validate the workbook by reproducing the selected historical quotes and investigating every material variance rather than forcing the template to match unexplained legacy numbers. Pilot it on live work with version control, an assigned owner for rate updates, and an approval threshold for unusually low margins or high-value jobs.",
+      practicalApproach: [
+        "Select 20 completed quotes across Redwood's main job types and map every recurring input, calculation, rate table, exception, and approval step.",
+        "Build protected input sections for customer requirements and fabrication features, separate rate tables from job-specific assumptions, and calculate material utilization, setup, cutting, forming, welding, finishing, outside services, overhead, margin, and quantity breaks in distinct auditable sections.",
+        "Include explicit fields for uncertainty, minimum charges, scrap assumptions, expedite premiums, and estimator overrides with reasons.",
+        "Validate the workbook by reproducing the selected historical quotes and investigating every material variance rather than forcing the template to match unexplained legacy numbers.",
+        "Pilot it on live work with version control, an assigned owner for rate updates, and an approval threshold for unusually low margins or high-value jobs.",
+      ],
       considerations: [
         "Material prices, outside-processing charges, labor rates, and machine assumptions need named owners and effective dates or the workbook will become confidently outdated.",
         "Protecting formulas must not prevent estimators from handling legitimate custom exceptions; overrides should be allowed but logged and reviewed.",
@@ -229,8 +245,13 @@ export const exampleReport: ScannerReportCopy = {
       headline: "Reuse proven pricing knowledge from similar jobs",
       whyItMatters:
         "Redwood repeatedly encounters broad fabrication categories such as brackets, enclosures, weldments, and small production runs, even when the exact geometry differs. A searchable library would let an estimator find comparable material, thickness, process sequence, quantity, finish, quoted price, and actual outcome instead of estimating every request from scratch. It would also preserve knowledge that may currently reside in individual memory or scattered files. Used correctly, comparable jobs provide a reasonableness check and a starting point; they should not automatically determine price when specifications or current costs differ.",
-      practicalApproach:
-        "Build a pilot from the last 50 completed jobs and link the final drawing revision, approved quote, relevant workbook, and available actual-cost record under one job identifier. Tag each job with part family, material, thickness, major processes, quantity band, finish, tolerance class, customer type, and completion date, using short controlled lists rather than free-form labels. Provide search and filters that return a small set of comparable jobs with the assumptions and exceptions visible. Ask the estimator to use the library during a live pilot and record whether each comparable shortened the quote, changed an assumption, or was rejected as misleading. Refine tags based on those searches before importing a larger archive.",
+      practicalApproach: [
+        "Build a pilot from the last 50 completed jobs and link the final drawing revision, approved quote, relevant workbook, and available actual-cost record under one job identifier.",
+        "Tag each job with part family, material, thickness, major processes, quantity band, finish, tolerance class, customer type, and completion date, using short controlled lists rather than free-form labels.",
+        "Provide search and filters that return a small set of comparable jobs with the assumptions and exceptions visible.",
+        "Ask the estimator to use the library during a live pilot and record whether each comparable shortened the quote, changed an assumption, or was rejected as misleading.",
+        "Refine tags based on those searches before importing a larger archive.",
+      ],
       considerations: [
         "Historical quoted prices may embed outdated metal costs, shop rates, or margin decisions and should be normalized or clearly date-stamped.",
         "A visually similar enclosure can have very different cost because of tolerance, hardware, welding, finish, inspection, or quantity requirements.",
@@ -243,8 +264,13 @@ export const exampleReport: ScannerReportCopy = {
       headline: "Estimate cutting and forming time from shop-specific features",
       whyItMatters:
         "Cutting, piercing, bending, setup, and handling time are recurring drivers in sheet-metal pricing, and Redwood currently measures drawing features manually. A feature-based model could convert counts and dimensions into repeatable time estimates, reducing dependence on informal rules and making quantity effects more consistent. It would be particularly useful when comparing straightforward parts within the same family. However, reliable results depend on Redwood's own equipment, programming practices, material behavior, tooling, and handling patterns, so generic industry rates should not be treated as production truth.",
-      practicalApproach:
-        "Choose one frequent and relatively consistent part family rather than attempting to model every fabrication process at once. For 15 completed jobs, record material and thickness, cut length, pierce count, bend count, setup events, part size, quantity, secondary handling, estimated times, and actual machine and labor times. Define simple editable formulas for setup plus per-feature run time, then compare model outputs with actuals by quantity band and investigate outliers such as difficult loading, special tooling, rework, or shared setups. Integrate the validated model as a recommendation inside the quote workbook while allowing estimator adjustment with a reason code. Expand to another family only after the first model meets an agreed error range on unseen jobs.",
+      practicalApproach: [
+        "Choose one frequent and relatively consistent part family rather than attempting to model every fabrication process at once.",
+        "For 15 completed jobs, record material and thickness, cut length, pierce count, bend count, setup events, part size, quantity, secondary handling, estimated times, and actual machine and labor times.",
+        "Define simple editable formulas for setup plus per-feature run time, then compare model outputs with actuals by quantity band and investigate outliers such as difficult loading, special tooling, rework, or shared setups.",
+        "Integrate the validated model as a recommendation inside the quote workbook while allowing estimator adjustment with a reason code.",
+        "Expand to another family only after the first model meets an agreed error range on unseen jobs.",
+      ],
       considerations: [
         "Recorded labor time may combine programming, setup, waiting, material movement, and machine run time, obscuring the relationship between features and actual effort.",
         "Nesting, common-line cutting, tool changes, sheet utilization, and shared setups can make per-part calculations nonlinear across quantity ranges.",
@@ -257,8 +283,13 @@ export const exampleReport: ScannerReportCopy = {
       headline: "Produce consistent customer-ready quotes in minutes",
       whyItMatters:
         "Once an estimate is approved, converting the result into a quote document and customer email is repetitive but still adds time to Redwood's turnaround. Automatically merging approved fields into consistent scope, price, quantity breaks, lead time, assumptions, exclusions, validity, and email language would remove retyping and reduce discrepancies between the calculation and the customer-facing document. Redwood's occasional use of ChatGPT for email drafting indicates a low-friction entry point, but fixed approved templates are more appropriate than unconstrained generation for commercial terms. This opportunity is most valuable after the Excel workbook has stable fields.",
-      practicalApproach:
-        "Create approved templates for the quote document and accompanying email, with conditional sections for finishing, outside processing, tooling, freight, customer-supplied material, certifications, and drawing revision. Map each field directly from the approved estimate so price, quantity, lead time, and assumptions are populated once rather than copied manually. Use controlled clauses for exclusions and validity periods, allowing optional language only from an approved clause library. Generate drafts rather than sending automatically, and require a final check of customer identity, part number, revision, quantity, price, lead time, and attachments. Track preparation time and post-send corrections to verify that automation improves both speed and consistency.",
+      practicalApproach: [
+        "Create approved templates for the quote document and accompanying email, with conditional sections for finishing, outside processing, tooling, freight, customer-supplied material, certifications, and drawing revision.",
+        "Map each field directly from the approved estimate so price, quantity, lead time, and assumptions are populated once rather than copied manually.",
+        "Use controlled clauses for exclusions and validity periods, allowing optional language only from an approved clause library.",
+        "Generate drafts rather than sending automatically, and require a final check of customer identity, part number, revision, quantity, price, lead time, and attachments.",
+        "Track preparation time and post-send corrections to verify that automation improves both speed and consistency.",
+      ],
       considerations: [
         "A polished draft can conceal an incorrect source value, so final review must focus on commercial fields rather than wording alone.",
         "Lead time may depend on current shop load and outside processors; it should not be populated from a static default without confirmation.",
@@ -271,8 +302,13 @@ export const exampleReport: ScannerReportCopy = {
       headline: "Fast-track simple work while escalating complex quotes",
       whyItMatters:
         "Redwood's mix of custom fabrication and small production work means not every request deserves the same estimating path. A complete, straightforward bracket made through familiar processes can potentially move through a fast lane, while an enclosure with tight tolerances, welding, outside finishing, or unclear drawings needs more experienced review. Triage would protect limited estimator capacity and reduce queue time for simpler requests without lowering scrutiny on complex work. It can initially operate as a rules-based process; AI classification is unnecessary until Redwood has evidence that manual rules are insufficient.",
-      practicalApproach:
-        "Define fast-lane criteria using information already captured by the intake form, such as complete drawing package, approved materials, familiar thickness range, standard processes, no special certifications, limited outside processing, and value below a review threshold. Define escalation triggers for assemblies, ambiguous revisions, tight or unusual tolerances, extensive welding, new materials, complex finishing, short due dates, or high commercial value. Test the rules manually against 30 recent requests and compare the assigned route with the actual estimating effort and issues encountered. Add a daily queue view showing completeness, promised response date, route, owner, and blocker. Automate classification only after false fast-lane assignments are rare and a person remains able to override the route.",
+      practicalApproach: [
+        "Define fast-lane criteria using information already captured by the intake form, such as complete drawing package, approved materials, familiar thickness range, standard processes, no special certifications, limited outside processing, and value below a review threshold.",
+        "Define escalation triggers for assemblies, ambiguous revisions, tight or unusual tolerances, extensive welding, new materials, complex finishing, short due dates, or high commercial value.",
+        "Test the rules manually against 30 recent requests and compare the assigned route with the actual estimating effort and issues encountered.",
+        "Add a daily queue view showing completeness, promised response date, route, owner, and blocker.",
+        "Automate classification only after false fast-lane assignments are rare and a person remains able to override the route.",
+      ],
       considerations: [
         "A geometrically simple part may still carry high risk because of tolerance, certification, material availability, or customer terms not obvious from the drawing.",
         "Priority rules based heavily on estimated value could delay strategically important customers or recurring low-value work.",
@@ -285,8 +321,13 @@ export const exampleReport: ScannerReportCopy = {
       headline: "Improve margins by learning from completed jobs",
       whyItMatters:
         "Reducing turnaround is valuable only if Redwood's faster quotes remain accurate enough to protect margin. Comparing estimated and actual material, setup, cutting, forming, welding, finishing, and outside-service costs can reveal systematic underestimation or overestimation by part family, material, process, and quantity range. This feedback would provide evidence for updating the controlled workbook and feature-based time models rather than relying on isolated anecdotes. It can also distinguish pricing problems from execution problems, such as rework or unusual downtime, when job records capture those events.",
-      practicalApproach:
-        "Audit 20 completed jobs to determine whether quote versions, purchased or issued material, labor hours, machine time, outside-service invoices, scrap, rework, and final quantities can be linked reliably. Establish a small shared data model with estimated amount, actual amount, variance, variance reason, and confidence for each major cost category. Review exceptions monthly and look for repeated patterns, such as underestimated welding on enclosures or excessive setup assumptions on repeat brackets, rather than automatically changing rates after one job. Feed approved adjustments into the quote workbook through a controlled rate-change process with effective dates. Expand analysis only after Redwood can consistently separate normal production effort from expedite costs, rework, training, and machine interruptions.",
+      practicalApproach: [
+        "Audit 20 completed jobs to determine whether quote versions, purchased or issued material, labor hours, machine time, outside-service invoices, scrap, rework, and final quantities can be linked reliably.",
+        "Establish a small shared data model with estimated amount, actual amount, variance, variance reason, and confidence for each major cost category.",
+        "Review exceptions monthly and look for repeated patterns, such as underestimated welding on enclosures or excessive setup assumptions on repeat brackets, rather than automatically changing rates after one job.",
+        "Feed approved adjustments into the quote workbook through a controlled rate-change process with effective dates.",
+        "Expand analysis only after Redwood can consistently separate normal production effort from expedite costs, rework, training, and machine interruptions.",
+      ],
       considerations: [
         "Labor clocking or job coding may be too coarse to separate setup, run, welding, handling, rework, and downtime, limiting the conclusions Redwood can draw.",
         "Actual material cost may reflect purchasing timing, remnants, minimum buys, or inventory accounting rather than the economic cost assumed in a quote.",

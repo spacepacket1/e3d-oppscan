@@ -1,6 +1,25 @@
 import Link from "next/link";
 
+import { scannerContent } from "@/content/scanner-content";
 import type { ScannerCompletedReport } from "@/lib/scanner-report-store";
+
+function opportunityAnchorId(candidateId: string) {
+  return `opportunity-${candidateId}`;
+}
+
+// Reports completed before practicalApproach became a list of steps still
+// have it stored as a single string -- render both shapes rather than
+// requiring a data migration for already-delivered reports.
+function PracticalApproach({ steps }: { steps: string[] | string }) {
+  if (!Array.isArray(steps)) return <p>{steps}</p>;
+  return (
+    <ol>
+      {steps.map((step) => (
+        <li key={step}>{step}</li>
+      ))}
+    </ol>
+  );
+}
 
 export function ScannerReport({
   record,
@@ -48,12 +67,47 @@ export function ScannerReport({
         <h3>Recommended starting point</h3>
         <p>{record.report.recommendedStartingPoint}</p>
       </section>
+      <section className="content-panel">
+        <h2>AI Opportunities</h2>
+        <table className="scanner-opportunity-index">
+          <thead>
+            <tr>
+              <th scope="col">Opportunity</th>
+              <th scope="col">Type</th>
+              <th scope="col">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {record.candidates.map((candidate) => {
+              const copy = copyByCandidate.get(candidate.id);
+              if (!copy) return null;
+              return (
+                <tr key={candidate.id}>
+                  <td>
+                    <a href={`#${opportunityAnchorId(candidate.id)}`}>
+                      {copy.headline}
+                    </a>
+                  </td>
+                  <td>{candidate.outcomeType}</td>
+                  <td>{candidate.score}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </section>
       {record.candidates.map((candidate) => {
         const copy = copyByCandidate.get(candidate.id);
         if (!copy) return null;
         return (
-          <section className="content-panel" key={candidate.id}>
-            <p className="section-heading__eyebrow">RANK {candidate.rank}</p>
+          <section
+            className="content-panel"
+            id={opportunityAnchorId(candidate.id)}
+            key={candidate.id}
+          >
+            <p className="section-heading__eyebrow">
+              Opportunity {candidate.rank}
+            </p>
             <h2>{copy.headline}</h2>
             <p>{candidate.title}</p>
             <p>{candidate.summary}</p>
@@ -100,7 +154,7 @@ export function ScannerReport({
               ))}
             </ul>
             <h3>Practical approach</h3>
-            <p>{copy.practicalApproach}</p>
+            <PracticalApproach steps={copy.practicalApproach} />
             <h3>First step</h3>
             <p>{candidate.firstStep}</p>
             <h3>Considerations</h3>
@@ -112,6 +166,12 @@ export function ScannerReport({
           </section>
         );
       })}
+      <section className="content-panel">
+        <h2>{scannerContent.reportImplementation.heading}</h2>
+        {scannerContent.reportImplementation.body.map((paragraph) => (
+          <p key={paragraph}>{paragraph}</p>
+        ))}
+      </section>
       <section className="content-panel">
         <h2>Prepare for your consultation</h2>
         <ul>

@@ -70,4 +70,12 @@ export const scannerContent = {
     description:
       "The scanner is meant to help you decide where AI should actually go in your business before you invest in a larger implementation.",
   },
+  reportImplementation: {
+    heading: "How FutCo can help you implement this",
+    body: [
+      "The consultation included with your scan is where this list becomes a plan: which opportunity to start with, what a first pilot looks like, and what FutCo can build or set up directly versus what your team should own.",
+      "From there, FutCo can support implementation in whatever way fits — a scoped project for a single opportunity, hands-on setup of the tools and templates described above, or ongoing support as you work through the roadmap.",
+      "None of this requires committing to a large engagement up front. Most businesses start with the single highest-priority opportunity and expand once it's proven out.",
+    ],
+  },
 } as const;

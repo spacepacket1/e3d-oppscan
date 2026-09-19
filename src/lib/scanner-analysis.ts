@@ -22,7 +22,7 @@ export type ScannerReportCopy = {
     candidateId: string;
     headline: string;
     whyItMatters: string;
-    practicalApproach: string;
+    practicalApproach: string[];
     considerations: string[];
   }>;
   consultationPreparation: string[];
@@ -90,7 +90,8 @@ const REPORT_SCHEMA_INSTRUCTIONS =
   "Return exactly one opportunity for each ranked candidate, in the supplied order, without changing IDs, scores, or ranks. Consultation preparation must contain 2-5 strings and considerations 1-4 strings. " +
   "This is a paid, in-depth advisory report the customer is paying for and will read closely, so write comprehensively and specifically: " +
   "executiveSummary should be 3-5 substantive paragraphs synthesizing the business's overall AI readiness and biggest levers, not a short blurb. " +
-  "whyItMatters and practicalApproach should each be several sentences of concrete, specific reasoning and step-by-step guidance grounded in the intake details, not generic advice. " +
+  "whyItMatters should be several sentences of concrete, specific reasoning grounded in the intake details, not generic advice. " +
+  '"practicalApproach" must be an array of 3-6 short, sequential, concrete action steps (each a single specific sentence or short instruction, not a paragraph) grounded in the intake details, ordered as the business should actually do them. ' +
   "considerations must contain 3-4 specific, non-obvious risks or dependencies. consultationPreparation must contain 4-5 pointed questions. " +
   "Avoid filler, repetition, and generic AI-strategy platitudes; every sentence should reference something specific from the business's actual intake. " +
   "headline must be a short, benefit-focused title only (under 100 characters) — the application already displays rank and numeric ratings separately, so do not restate rank, scores, or ratings inside headline. " +
@@ -446,7 +447,7 @@ export function validateReportResponse(
         candidateId,
         headline: boundedString(entry.headline, 140),
         whyItMatters: boundedString(entry.whyItMatters, 1800),
-        practicalApproach: boundedString(entry.practicalApproach, 2200),
+        practicalApproach: boundedStringArray(entry.practicalApproach, 3, 6, 300),
         considerations: boundedStringArray(entry.considerations, 1, 4, 500),
       };
     },

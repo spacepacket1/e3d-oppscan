@@ -69,7 +69,11 @@ function reportFor(ranked = rankScannerCandidates(candidates)) {
       candidateId: candidate.id,
       headline: `Apply ${candidate.title}`,
       whyItMatters: "It addresses a stated operating constraint.",
-      practicalApproach: "Run a measured pilot with human review.",
+      practicalApproach: [
+        "Run a measured pilot with human review.",
+        "Track outcomes for two weeks.",
+        "Expand only after the pilot succeeds.",
+      ],
       considerations: ["Protect sensitive data."],
     })),
     consultationPreparation: [
@@ -153,7 +157,14 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
         candidateId: candidate.id,
         headline: long(140),
         whyItMatters: long(1800),
-        practicalApproach: long(2200),
+        practicalApproach: [
+          long(300),
+          long(300),
+          long(300),
+          long(300),
+          long(300),
+          long(300),
+        ],
         considerations: [long(500), long(500), long(500)],
       })),
       consultationPreparation: [long(400), long(400), long(400), long(400)],
@@ -205,7 +216,25 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
           opportunities: [
             {
               ...comprehensive.opportunities[0],
-              practicalApproach: long(2201),
+              practicalApproach: [
+                ...comprehensive.opportunities[0].practicalApproach.slice(0, 5),
+                long(301),
+              ],
+            },
+            ...comprehensive.opportunities.slice(1),
+          ],
+        },
+        ranked,
+      ),
+    ).toThrow(ScannerAnalysisError);
+    expect(() =>
+      validateReportResponse(
+        {
+          ...comprehensive,
+          opportunities: [
+            {
+              ...comprehensive.opportunities[0],
+              practicalApproach: [long(300), long(300)],
             },
             ...comprehensive.opportunities.slice(1),
           ],

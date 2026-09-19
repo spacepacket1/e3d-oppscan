@@ -35,7 +35,7 @@ describe("scanner report authorization and telemetry", () => {
       report: {
         executiveSummary: "Summary", recommendedStartingPoint: "Start",
         opportunities: [{ candidateId: "safe-candidate", headline: "Safe", whyItMatters: "Why",
-          practicalApproach: "How", considerations: ["Care"] }],
+          practicalApproach: ["How"], considerations: ["Care"] }],
         consultationPreparation: ["Owner?", "Baseline?"], closingNote: "Close",
       },
       baseScore: 50,

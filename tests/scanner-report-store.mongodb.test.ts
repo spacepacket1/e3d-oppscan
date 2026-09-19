@@ -42,7 +42,7 @@ const completion: ScannerReportCompletionInput = {
         candidateId: "candidate-one",
         headline: "Automate intake",
         whyItMatters: "It saves time.",
-        practicalApproach: "Start with one source.",
+        practicalApproach: ["Start with one source."],
         considerations: ["Review exceptions"],
       },
     ],

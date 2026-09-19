@@ -2427,3 +2427,37 @@ button {
   color: var(--ink-950);
   margin: 0.25rem 0;
 }
+
+/* Scanner report: AI Opportunities index table */
+.scanner-opportunity-index {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.scanner-opportunity-index th,
+.scanner-opportunity-index td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.scanner-opportunity-index th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ink-700);
+}
+
+.scanner-opportunity-index td:last-child,
+.scanner-opportunity-index th:last-child {
+  text-align: right;
+}
+
+.scanner-opportunity-index a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
