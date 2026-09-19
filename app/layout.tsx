@@ -55,6 +55,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
                 />
                 <span className="oppscan-header__wordmark">{siteIdentity.name}</span>
               </Link>
+              <Link className="oppscan-header__account-link" href="/account">
+                My reports
+              </Link>
             </div>
           </header>
           <div id="main-content">{children}</div>

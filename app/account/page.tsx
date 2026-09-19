@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 
+import { E3dLoginForm } from "@/components/e3d-login-form";
 import { getE3dSessionUser } from "@/lib/e3d-session";
 import {
   buildReportUrl,
@@ -16,8 +17,6 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const E3D_LOGIN_URL = "https://e3d.ai/login";
-
 export default async function AccountPage() {
   const headerList = await headers();
   const session = await getE3dSessionUser(headerList.get("cookie") || "");
@@ -29,13 +28,8 @@ export default async function AccountPage() {
           <div className="container">
             <div className="content-panel">
               <h1>Sign in to see your reports</h1>
-              <p>
-                Oppscan reports are tied to your e3d.ai account. Sign in
-                there, then come back to this page.
-              </p>
-              <a className="button button--primary" href={E3D_LOGIN_URL}>
-                Sign in with e3d.ai
-              </a>
+              <p>Oppscan reports are tied to your e3d.ai account.</p>
+              <E3dLoginForm />
             </div>
           </div>
         </section>
