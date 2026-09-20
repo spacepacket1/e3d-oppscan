@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Archivo, IBM_Plex_Mono, Inter } from "next/font/google";
 
 import { contactDetails, siteIdentity } from "@/content/site-config";
+import { E3dSessionProvider } from "@/components/e3d-session-context";
 import { HeaderAccountStatus } from "@/components/header-account-status";
 import { buildRootMetadata } from "@/lib/seo";
 
@@ -40,37 +41,39 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html className={`${inter.variable} ${archivo.variable} ${plexMono.variable}`} lang="en">
       <body>
-        <div className="site-root">
-          <a className="skip-link" href="#main-content">
-            Skip to content
-          </a>
-          <header className="oppscan-header">
-            <div className="container oppscan-header__inner">
-              <Link className="site-header__brand" href="/">
-                <Image
-                  alt="FutCo"
-                  className="site-header__brand-mark"
-                  height={44}
-                  src="/futco-logo.png"
-                  width={44}
-                />
-                <span className="oppscan-header__wordmark">AI Opportunity Scanner</span>
-              </Link>
-              <HeaderAccountStatus />
-            </div>
-          </header>
-          <div id="main-content">{children}</div>
-          <footer className="oppscan-footer">
-            <div className="container oppscan-footer__inner">
-              <p>{siteIdentity.footerTagline}</p>
-              <nav className="oppscan-footer__links" aria-label="Footer">
-                <a href={`mailto:${contactDetails.email}`}>{contactDetails.email}</a>
-                <a href="https://applied.futco.ai/privacy">Privacy</a>
-                <a href="https://applied.futco.ai/terms">Terms</a>
-              </nav>
-            </div>
-          </footer>
-        </div>
+        <E3dSessionProvider>
+          <div className="site-root">
+            <a className="skip-link" href="#main-content">
+              Skip to content
+            </a>
+            <header className="oppscan-header">
+              <div className="container oppscan-header__inner">
+                <Link className="site-header__brand" href="/">
+                  <Image
+                    alt="FutCo"
+                    className="site-header__brand-mark"
+                    height={44}
+                    src="/futco-logo.png"
+                    width={44}
+                  />
+                  <span className="oppscan-header__wordmark">AI Opportunity Scanner</span>
+                </Link>
+                <HeaderAccountStatus />
+              </div>
+            </header>
+            <div id="main-content">{children}</div>
+            <footer className="oppscan-footer">
+              <div className="container oppscan-footer__inner">
+                <p>{siteIdentity.footerTagline}</p>
+                <nav className="oppscan-footer__links" aria-label="Footer">
+                  <a href={`mailto:${contactDetails.email}`}>{contactDetails.email}</a>
+                  <a href="https://applied.futco.ai/privacy">Privacy</a>
+                  <a href="https://applied.futco.ai/terms">Terms</a>
+                </nav>
+              </div>
+            </footer>
+          </div>
+        </E3dSessionProvider>
       </body>
     </html>
   );

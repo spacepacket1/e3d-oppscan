@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useE3dSession } from "@/components/e3d-session-context";
+
 type LoginResponse = {
   message?: string;
   needsVerification?: boolean;
@@ -10,6 +12,7 @@ type LoginResponse = {
 
 export function E3dLoginForm() {
   const router = useRouter();
+  const { refresh } = useE3dSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isPending, setIsPending] = useState(false);
@@ -30,6 +33,9 @@ export function E3dLoginForm() {
         setError(payload.message || "Sign-in failed. Please try again.");
         return;
       }
+      // Same reasoning as logout: router.refresh() alone won't update the
+      // header's already-mounted session state, so re-fetch it directly.
+      await refresh();
       router.refresh();
     } catch {
       setError("Sign-in failed. Please try again.");
