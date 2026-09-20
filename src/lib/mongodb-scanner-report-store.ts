@@ -109,22 +109,36 @@ export class MongoScannerReportStore implements ScannerReportStore {
     const documents = await collection.find({ completed: true }).toArray();
     const reports: ScannerReportForAdmin[] = [];
     for (const document of documents) {
-      // Older reports can predate a field this store now requires (e.g.
-      // checkoutEmail, added after some reports were already completed).
-      // One legacy document shouldn't take down the whole admin listing --
-      // skip it and keep going rather than throwing.
-      try {
-        reports.push({
-          ...completedReportFromDocument(document),
-          revoked: document.revoked === true,
-        });
-      } catch (error) {
+      // Older reports can predate a field this store now persists (e.g.
+      // checkoutEmail, companyName, baseScore/potentialScore were all
+      // added after some real reports were already completed). Unlike the
+      // customer-facing path, admin should still see these -- with the
+      // missing fields shown as unknown rather than fabricated or used to
+      // hide the report entirely. Only truly unrenderable documents
+      // (missing what the report content itself needs) are skipped.
+      if (!document.tokenHash || !document.completedAt || !document.candidates || !document.report) {
         console.error(
-          "listAllReportsForAdmin: skipping malformed report",
+          "listAllReportsForAdmin: skipping unrenderable report",
           document._id,
-          error,
         );
+        continue;
       }
+      reports.push({
+        scanId: document._id,
+        ...(document.settledSpendAt
+          ? { settledSpendAt: document.settledSpendAt.toISOString() }
+          : {}),
+        completedAt: document.completedAt.toISOString(),
+        tokenHash: document.tokenHash,
+        checkoutEmail: document.checkoutEmail ?? null,
+        companyName: document.companyName ?? null,
+        candidates: structuredClone(document.candidates),
+        report: structuredClone(document.report),
+        baseScore: typeof document.baseScore === "number" ? document.baseScore : null,
+        potentialScore:
+          typeof document.potentialScore === "number" ? document.potentialScore : null,
+        revoked: document.revoked === true,
+      });
     }
     return reports;
   }

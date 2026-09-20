@@ -39,8 +39,8 @@ export default async function AdminReportDetailPage({
           <div className="content-panel">
             <Link href="/admin">&larr; All reports</Link>
             <p>
-              Checkout email: {record.checkoutEmail} — status:{" "}
-              {record.revoked ? "Revoked" : "Active"}
+              Checkout email: {record.checkoutEmail ?? "(unknown)"} —
+              status: {record.revoked ? "Revoked" : "Active"}
             </p>
             <form action={toggleReportRevoked.bind(null, scanId, !record.revoked)}>
               <button className="button button--ghost" type="submit">

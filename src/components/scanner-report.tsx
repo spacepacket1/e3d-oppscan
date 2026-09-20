@@ -42,7 +42,20 @@ export function ScannerReport({
   ctaLabel = "Book your included consultation",
   ctaHelperText = "If booking is not configured, this action opens the established contact page so you can arrange the consultation directly.",
 }: {
-  record: ScannerCompletedReport;
+  record: Omit<
+    ScannerCompletedReport,
+    "baseScore" | "potentialScore" | "checkoutEmail" | "companyName"
+  > & {
+    // Reports completed before the AI Base Score feature (or before
+    // checkoutEmail/companyName existed) have nothing honest to show here
+    // -- null rather than a fabricated value. Neither field is actually
+    // rendered by this component; the type just needs to accept whatever
+    // shape the admin listing (which does show them) passes through.
+    baseScore: number | null;
+    potentialScore: number | null;
+    checkoutEmail?: string | null;
+    companyName?: string | null;
+  };
   consultationHref: string;
   ctaLabel?: string;
   ctaHelperText?: string;
@@ -61,21 +74,24 @@ export function ScannerReport({
           your scanner purchase.
         </p>
       </header>
-      <section className="content-panel scanner-score-summary">
-        <div>
-          <p className="section-heading__eyebrow">AI BASE SCORE</p>
-          <p className="scanner-score-summary__value">{record.baseScore}/100</p>
-          <p>Where your business stands today.</p>
-        </div>
-        <div>
-          <p className="section-heading__eyebrow">POTENTIAL SCORE</p>
-          <p className="scanner-score-summary__value">{record.potentialScore}/100</p>
-          <p>
-            What adopting every opportunity below could get you to — there is
-            always more beyond any single scan, so this never reaches 100.
-          </p>
-        </div>
-      </section>
+      {record.baseScore !== null && record.potentialScore !== null ? (
+        <section className="content-panel scanner-score-summary">
+          <div>
+            <p className="section-heading__eyebrow">AI BASE SCORE</p>
+            <p className="scanner-score-summary__value">{record.baseScore}/100</p>
+            <p>Where your business stands today.</p>
+          </div>
+          <div>
+            <p className="section-heading__eyebrow">POTENTIAL SCORE</p>
+            <p className="scanner-score-summary__value">{record.potentialScore}/100</p>
+            <p>
+              What adopting every opportunity below could get you to — there
+              is always more beyond any single scan, so this never reaches
+              100.
+            </p>
+          </div>
+        </section>
+      ) : null}
       <section className="content-panel">
         <h2>Executive summary</h2>
         <Paragraphs text={record.report.executiveSummary} />
@@ -157,7 +173,11 @@ export function ScannerReport({
               </div>
               <div>
                 <dt>Points toward 100</dt>
-                <dd>+{candidate.pointValue}</dd>
+                <dd>
+                  {typeof candidate.pointValue === "number"
+                    ? `+${candidate.pointValue}`
+                    : "—"}
+                </dd>
               </div>
             </dl>
             <h3>Why it matters</h3>

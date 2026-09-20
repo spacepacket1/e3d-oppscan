@@ -27,11 +27,11 @@ export function AdminReportsTable({
       <tbody>
         {sorted.map((report) => (
           <tr key={report.scanId}>
-            <td>{report.companyName}</td>
+            <td>{report.companyName ?? "(unknown)"}</td>
             <td>{new Date(report.completedAt).toLocaleString()}</td>
-            <td>{report.checkoutEmail}</td>
+            <td>{report.checkoutEmail ?? "(unknown)"}</td>
             <td>
-              {report.baseScore}/100 · {report.potentialScore}/100
+              {report.baseScore ?? "—"}/100 · {report.potentialScore ?? "—"}/100
             </td>
             <td>{report.revoked ? "Revoked" : "Active"}</td>
             <td>

@@ -40,8 +40,20 @@ export type ScannerReportCompletionInput = Pick<
   | "companyName"
 >;
 
-export type ScannerReportForAdmin = ScannerCompletedReport & {
+// Admin sees every report, including ones completed before a given field
+// existed (checkoutEmail, companyName, baseScore/potentialScore were all
+// added after some real reports were already completed) -- those fields
+// are null here rather than fabricated, since a maturity assessment that
+// was never actually judged can't be honestly backfilled.
+export type ScannerReportForAdmin = Omit<
+  ScannerCompletedReport,
+  "checkoutEmail" | "companyName" | "baseScore" | "potentialScore"
+> & {
   revoked: boolean;
+  checkoutEmail: string | null;
+  companyName: string | null;
+  baseScore: number | null;
+  potentialScore: number | null;
 };
 
 export interface ScannerReportStore {
