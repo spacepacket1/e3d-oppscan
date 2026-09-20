@@ -53,7 +53,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
                   src="/futco-logo.png"
                   width={44}
                 />
-                <span className="oppscan-header__wordmark">{siteIdentity.name}</span>
+                <span className="oppscan-header__wordmark">AI Opportunity Scanner</span>
               </Link>
               <Link className="oppscan-header__account-link" href="/account">
                 My reports
