@@ -16,6 +16,7 @@ export function AdminReportsTable({
     <table className="scanner-opportunity-index">
       <thead>
         <tr>
+          <th scope="col">Company</th>
           <th scope="col">Completed</th>
           <th scope="col">Checkout email</th>
           <th scope="col">Base / Potential</th>
@@ -26,6 +27,7 @@ export function AdminReportsTable({
       <tbody>
         {sorted.map((report) => (
           <tr key={report.scanId}>
+            <td>{report.companyName}</td>
             <td>{new Date(report.completedAt).toLocaleString()}</td>
             <td>{report.checkoutEmail}</td>
             <td>

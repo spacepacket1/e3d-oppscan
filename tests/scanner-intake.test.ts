@@ -1392,5 +1392,6 @@ function buildAnalysisResult() {
     baseScore: 50,
     potentialScore: 60,
     checkoutEmail: "buyer@example.com",
+    companyName: "Acme Co.",
   };
 }

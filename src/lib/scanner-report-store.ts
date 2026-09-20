@@ -18,6 +18,9 @@ export type ScannerCompletedReport = {
   // authorizeScannerReportEmail below) -- the token alone is not enough,
   // since a leaked/forwarded link should not by itself grant access.
   checkoutEmail: string;
+  // From the intake form, not the report copy -- shown in report listings
+  // (customer and admin) so a report is identifiable at a glance.
+  companyName: string;
   candidates: RankedScannerCandidate[];
   report: ScannerReportCopy;
   // Application-computed AI maturity score (0-100) and the score a
@@ -29,7 +32,12 @@ export type ScannerCompletedReport = {
 
 export type ScannerReportCompletionInput = Pick<
   ScannerCompletedReport,
-  "candidates" | "report" | "baseScore" | "potentialScore" | "checkoutEmail"
+  | "candidates"
+  | "report"
+  | "baseScore"
+  | "potentialScore"
+  | "checkoutEmail"
+  | "companyName"
 >;
 
 export type ScannerReportForAdmin = ScannerCompletedReport & {
@@ -315,6 +323,7 @@ export class InMemoryScannerReportStore implements ScannerReportStore {
       completedAt,
       tokenHash,
       checkoutEmail: input.checkoutEmail,
+      companyName: input.companyName,
       candidates: structuredClone(input.candidates),
       report: structuredClone(input.report),
       baseScore: input.baseScore,

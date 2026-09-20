@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ScannerReport } from "@/components/scanner-report";
 import {
   exampleCandidates,
+  exampleCompanyName,
   exampleMaturity,
   exampleReport,
 } from "@/content/example-report";
@@ -31,6 +32,7 @@ const exampleRecord = {
   completedAt: "2026-09-18T00:00:00.000Z",
   tokenHash: "0".repeat(64),
   checkoutEmail: "example@futco.ai",
+  companyName: exampleCompanyName,
   candidates: exampleRankedCandidates,
   report: exampleReport,
   baseScore: exampleBaseScore,

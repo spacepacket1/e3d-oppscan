@@ -60,6 +60,7 @@ describe("scanner report authorization and telemetry", () => {
       baseScore: 50,
       potentialScore: 60,
       checkoutEmail: CHECKOUT_EMAIL,
+      companyName: "Acme Co.",
     }, hashReportAccessToken(token), "2026-09-10T00:00:00.000Z");
     // Simulates having already passed the email-confirmation gate, so these
     // authorization/telemetry tests can focus on what they're actually

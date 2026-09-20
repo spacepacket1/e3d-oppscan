@@ -76,7 +76,7 @@ export default async function AccountPage() {
                 {reports.map((report) => (
                   <li key={report.scanId}>
                     <a href={buildReportUrl(report.scanId)}>
-                      Report completed{" "}
+                      {report.companyName} — completed{" "}
                       {new Date(report.completedAt).toLocaleDateString()}
                     </a>{" "}
                     — AI Base Score {report.baseScore}/100, Potential Score{" "}

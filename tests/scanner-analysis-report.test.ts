@@ -59,6 +59,7 @@ function completionFor(ranked: ReturnType<typeof rankScannerCandidates>) {
     baseScore: 40,
     potentialScore: 70,
     checkoutEmail: "buyer@example.com",
+    companyName: "Acme Co.",
   };
 }
 

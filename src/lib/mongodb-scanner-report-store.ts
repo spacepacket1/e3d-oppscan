@@ -27,6 +27,7 @@ type ScannerReportDocument = {
   tokenHash?: string;
   completedAt?: Date;
   checkoutEmail?: string;
+  companyName?: string;
   candidates?: RankedScannerCandidate[];
   report?: ScannerReportCopy;
   baseScore?: number;
@@ -241,6 +242,7 @@ export class MongoScannerReportStore implements ScannerReportStore {
           tokenHash,
           completedAt: new Date(completedAt),
           checkoutEmail: input.checkoutEmail,
+          companyName: input.companyName,
           candidates: structuredClone(input.candidates),
           report: structuredClone(input.report),
           baseScore: input.baseScore,
@@ -381,6 +383,7 @@ function completedReportFromDocument(
     !document.tokenHash ||
     !document.completedAt ||
     !document.checkoutEmail ||
+    !document.companyName ||
     !document.candidates ||
     !document.report ||
     typeof document.baseScore !== "number" ||
@@ -397,6 +400,7 @@ function completedReportFromDocument(
     completedAt: document.completedAt.toISOString(),
     tokenHash: document.tokenHash,
     checkoutEmail: document.checkoutEmail,
+    companyName: document.companyName,
     candidates: structuredClone(document.candidates),
     report: structuredClone(document.report),
     baseScore: document.baseScore,

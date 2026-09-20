@@ -246,7 +246,11 @@ export async function orchestrateScannerIntake(
       completed = await store.completeReport(
         scanId,
         ownerId,
-        { ...analysis, checkoutEmail: checkoutContext.customerEmail },
+        {
+          ...analysis,
+          checkoutEmail: checkoutContext.customerEmail,
+          companyName: values.companyName,
+        },
         hashReportAccessToken(token),
         completedAt,
       );
