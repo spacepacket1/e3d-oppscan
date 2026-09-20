@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 
+import { AdminReportsTable } from "@/components/admin-reports-table";
 import { E3dLoginForm } from "@/components/e3d-login-form";
 import { E3dLogoutButton } from "@/components/e3d-logout-button";
-import { getE3dSessionUser } from "@/lib/e3d-session";
+import { getE3dSessionUser, isE3dAdmin } from "@/lib/e3d-session";
 import {
   buildReportUrl,
   deriveReportAccessToken,
@@ -85,6 +86,12 @@ export default async function AccountPage() {
               </ul>
             )}
           </div>
+          {isE3dAdmin(session) ? (
+            <div className="content-panel">
+              <h2>All scanner reports (admin)</h2>
+              <AdminReportsTable reports={await store.listAllReportsForAdmin()} />
+            </div>
+          ) : null}
         </div>
       </section>
     </main>

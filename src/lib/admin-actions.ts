@@ -19,5 +19,6 @@ export async function toggleReportRevoked(scanId: string, revoked: boolean) {
   const store = getScannerReportStore();
   await store.setReportRevoked(scanId, revoked);
   revalidatePath("/admin");
+  revalidatePath("/account");
   revalidatePath(`/admin/report/${scanId}`);
 }

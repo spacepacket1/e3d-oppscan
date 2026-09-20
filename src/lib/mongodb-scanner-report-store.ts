@@ -106,10 +106,26 @@ export class MongoScannerReportStore implements ScannerReportStore {
   async listAllReportsForAdmin(): Promise<ScannerReportForAdmin[]> {
     const collection = await this.getCollection();
     const documents = await collection.find({ completed: true }).toArray();
-    return documents.map((document) => ({
-      ...completedReportFromDocument(document),
-      revoked: document.revoked === true,
-    }));
+    const reports: ScannerReportForAdmin[] = [];
+    for (const document of documents) {
+      // Older reports can predate a field this store now requires (e.g.
+      // checkoutEmail, added after some reports were already completed).
+      // One legacy document shouldn't take down the whole admin listing --
+      // skip it and keep going rather than throwing.
+      try {
+        reports.push({
+          ...completedReportFromDocument(document),
+          revoked: document.revoked === true,
+        });
+      } catch (error) {
+        console.error(
+          "listAllReportsForAdmin: skipping malformed report",
+          document._id,
+          error,
+        );
+      }
+    }
+    return reports;
   }
 
   async acquireGenerationLease(

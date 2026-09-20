@@ -5,9 +5,8 @@ import Link from "next/link";
 
 import { ScannerReport } from "@/components/scanner-report";
 import { getE3dSessionUser, isE3dAdmin } from "@/lib/e3d-session";
+import { toggleReportRevoked } from "@/lib/admin-actions";
 import { getScannerReportStore } from "@/lib/scanner-report-store";
-
-import { toggleReportRevoked } from "../../actions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
