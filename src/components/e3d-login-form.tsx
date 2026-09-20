@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useE3dSession } from "@/components/e3d-session-context";
+import { E3dSignupDialog } from "@/components/e3d-signup-dialog";
 
 type LoginResponse = {
   message?: string;
@@ -80,9 +81,9 @@ export function E3dLoginForm() {
       <button className="button button--primary" disabled={isPending} type="submit">
         {isPending ? "Signing in..." : "Sign in"}
       </button>
-      <p className="development-note">
-        No account? <a href="https://e3d.ai/signup">Sign up at e3d.ai</a>.
-      </p>
+      <div className="development-note">
+        No account? <E3dSignupDialog />
+      </div>
     </form>
   );
 }
