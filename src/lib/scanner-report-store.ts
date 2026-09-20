@@ -90,6 +90,9 @@ export interface ScannerReportStore {
   // `revoked` exposed so the admin UI can show and toggle it), unlike every
   // other read path in this interface.
   listAllReportsForAdmin(): Promise<ScannerReportForAdmin[]>;
+  // Permanent, unlike setReportRevoked -- removes the record entirely
+  // rather than just blocking the link. Admin-only.
+  deleteReport(scanId: string): Promise<void>;
 }
 
 let testStore: ScannerReportStore | undefined;
@@ -266,6 +269,9 @@ export class InMemoryScannerReportStore implements ScannerReportStore {
   async setReportRevoked(scanId: string, revoked: boolean) {
     const record = this.ensure(scanId);
     record.revoked = revoked;
+  }
+  async deleteReport(scanId: string) {
+    this.records.delete(scanId);
   }
   async listReportsByCheckoutEmail(email: string) {
     const normalized = normalizeReportEmail(email);

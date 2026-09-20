@@ -3,9 +3,10 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
+import { DeleteReportButton } from "@/components/delete-report-button";
 import { ScannerReport } from "@/components/scanner-report";
 import { getE3dSessionUser, isE3dAdmin } from "@/lib/e3d-session";
-import { toggleReportRevoked } from "@/lib/admin-actions";
+import { deleteReport, toggleReportRevoked } from "@/lib/admin-actions";
 import { getScannerReportStore } from "@/lib/scanner-report-store";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +47,12 @@ export default async function AdminReportDetailPage({
               <button className="button button--ghost" type="submit">
                 {record.revoked ? "Restore this link" : "Revoke this link"}
               </button>
-            </form>
+            </form>{" "}
+            <DeleteReportButton
+              action={deleteReport}
+              redirectTo="/admin"
+              scanId={scanId}
+            />
           </div>
           <ScannerReport
             consultationHref="#"

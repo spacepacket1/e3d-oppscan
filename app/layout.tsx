@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Archivo, IBM_Plex_Mono, Inter } from "next/font/google";
 
 import { contactDetails, siteIdentity } from "@/content/site-config";
+import { HeaderAccountStatus } from "@/components/header-account-status";
 import { buildRootMetadata } from "@/lib/seo";
 
 import "./globals.css";
@@ -55,9 +56,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
                 />
                 <span className="oppscan-header__wordmark">AI Opportunity Scanner</span>
               </Link>
-              <Link className="oppscan-header__account-link" href="/account">
-                My reports
-              </Link>
+              <HeaderAccountStatus />
             </div>
           </header>
           <div id="main-content">{children}</div>

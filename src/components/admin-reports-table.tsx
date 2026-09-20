@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { toggleReportRevoked } from "@/lib/admin-actions";
+import { DeleteReportButton } from "@/components/delete-report-button";
+import { deleteReport, toggleReportRevoked } from "@/lib/admin-actions";
 import type { ScannerReportForAdmin } from "@/lib/scanner-report-store";
 
 export function AdminReportsTable({
@@ -47,7 +48,8 @@ export function AdminReportsTable({
                 <button className="button button--ghost" type="submit">
                   {report.revoked ? "Restore" : "Revoke"}
                 </button>
-              </form>
+              </form>{" "}
+              <DeleteReportButton action={deleteReport} scanId={report.scanId} />
             </td>
           </tr>
         ))}

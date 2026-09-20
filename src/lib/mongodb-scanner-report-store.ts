@@ -89,6 +89,11 @@ export class MongoScannerReportStore implements ScannerReportStore {
     await collection.updateOne({ _id: scanId }, { $set: { revoked } });
   }
 
+  async deleteReport(scanId: string) {
+    const collection = await this.getCollection();
+    await collection.deleteOne({ _id: scanId });
+  }
+
   async listReportsByCheckoutEmail(email: string) {
     const collection = await this.getCollection();
     const documents = await collection
