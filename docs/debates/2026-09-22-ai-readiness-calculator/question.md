@@ -1,0 +1,11 @@
+Should e3d-oppscan (oppscan.e3d.ai, a paid $99 AI-opportunity-scan business) build a free, dropdown-driven "AI Readiness Score" calculator as a new top-of-funnel page, in addition to its existing free tier?
+
+Context:
+
+- Oppscan already has a paid flow: business intake -> LLM analysis pipeline -> ranked AI-opportunity report -> $99 unlock + consultation booking.
+- Oppscan also already has a free tier at /free: freeform text intake (company website + a few text fields) run through an LLM analysis pipeline, producing a partial list of ranked opportunity candidates, gated by Turnstile bot-protection and rate-limited (each submission costs a real LLM call). It ends with a CTA to unlock the full $99 report.
+- src/lib/scanner-scoring.ts already contains a deterministic, non-LLM function computeBaseScore(maturity) that maps 5 maturity dimensions (toolAdoption, processIntegration, dataReadiness, technicalCapacity, governance), each rated 1-5, to a 0-100 score. Today those 1-5 ratings are inferred by the LLM from free-text intake as part of the /free and paid pipelines.
+- The proposed new idea: a separate /readiness-score page where the visitor picks all 5 maturity dimensions directly via dropdowns (no free text, no LLM call, no rate limiting/bot protection needed since it's a pure function), gets an instant 0-100 score with a banded blurb (e.g. Early/Developing/Advanced), and a single CTA pointing at /free (for a more tailored free summary) or straight to the $99 checkout. Estimated effort: low (reuses existing scoring function and existing form/page conventions, no new backend infra).
+- Precedent elsewhere in this company's product portfolio: e3d-liquiditywatch (a free public score gauge as a lead magnet for a paid product) and e3d-netdoctor (free diagnostic gated to a paid report).
+
+Question for the panel: is this worth building, or does it risk cannibalizing /free or diluting the "free = personalized analysis" positioning that currently justifies asking for money later? If you'd build it, what's the one thing most likely to make it fail to convert (e.g. band definitions, CTA placement, calculator feeling too disconnected from personalization)? If you would NOT build it, what should we do instead with that same low-effort budget to grow $99-scan conversion?
