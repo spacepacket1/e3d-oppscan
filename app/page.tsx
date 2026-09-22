@@ -62,8 +62,11 @@ export default async function AiOpportunityScannerPage({
                   {scannerContent.hero.ctaLabel}
                 </button>
               </form>
-              <Link className="button button--secondary" href="/free">
-                Try a free simplified summary first
+              <Link className="button button--secondary" href="/readiness-score">
+                Take the instant readiness score
+              </Link>
+              <Link className="button button--ghost" href="/free">
+                Get a tailored free opportunity summary
               </Link>
               <Link className="button button--ghost" href="/example">
                 See an example report

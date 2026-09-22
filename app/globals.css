@@ -1527,6 +1527,81 @@ button {
   max-width: 54rem;
 }
 
+.readiness-score-layout {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.readiness-score-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.readiness-score-field {
+  padding: 1rem;
+  border: 1px solid rgba(21, 94, 239, 0.12);
+  border-radius: var(--radius-md);
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.readiness-score-field__prompt {
+  color: var(--ink-700);
+  font-size: 0.94rem;
+}
+
+.readiness-score-errors {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.75rem 0 0;
+  padding-left: 1.15rem;
+}
+
+.readiness-score-errors a {
+  color: inherit;
+  font-weight: 700;
+}
+
+.readiness-score-result {
+  gap: 1.2rem;
+  border-color: rgba(21, 94, 239, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(21, 94, 239, 0.12), transparent 38%),
+    rgba(255, 255, 255, 0.9);
+}
+
+.readiness-score-result__headline {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+}
+
+.readiness-score-result__score {
+  font-size: clamp(2.8rem, 9vw, 5rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+}
+
+.readiness-score-result__copy {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.readiness-score-result__copy h2 {
+  font-size: clamp(1.6rem, 4vw, 2.35rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.readiness-score-result__copy p,
+.readiness-score-result__note {
+  max-width: var(--measure);
+  color: var(--ink-700);
+}
+
+.readiness-score-result__cta {
+  width: fit-content;
+}
+
 .scanner-intake-layout {
   display: grid;
   gap: 1.25rem;
@@ -2371,8 +2446,29 @@ button {
 .oppscan-header__inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
+}
+
+.oppscan-header__nav {
+  display: flex;
+  flex: 1 1 16rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  margin-left: auto;
+}
+
+.oppscan-header__nav-link {
+  color: var(--ink-700);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.oppscan-header__nav-link:hover,
+.oppscan-header__nav-link:focus-visible {
+  color: var(--ink-950);
 }
 
 .oppscan-header__wordmark {
@@ -2398,6 +2494,7 @@ button {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  margin-left: auto;
 }
 
 .oppscan-header__account button {
@@ -2423,6 +2520,33 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
+}
+
+@media (min-width: 44rem) {
+  .readiness-score-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .readiness-score-grid > .readiness-score-field:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .readiness-score-result__headline {
+    grid-template-columns: auto 1fr;
+  }
+}
+
+@media (max-width: 52rem) {
+  .oppscan-header__nav {
+    order: 3;
+    flex-basis: 100%;
+    margin-left: 0;
+    padding-top: 0.25rem;
+  }
+
+  .oppscan-header__account {
+    margin-left: 0;
+  }
 }
 
 /* Scanner report: candidate stat grid (score, outcome type, ratings) */

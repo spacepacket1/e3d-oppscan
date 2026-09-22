@@ -58,6 +58,14 @@ export default function RootLayout({ children }: RootLayoutProps) {
                   />
                   <span className="oppscan-header__wordmark">AI Opportunity Scanner</span>
                 </Link>
+                <nav aria-label="Primary" className="oppscan-header__nav">
+                  <Link className="oppscan-header__nav-link" href="/readiness-score">
+                    AI readiness score
+                  </Link>
+                  <Link className="oppscan-header__nav-link" href="/free">
+                    Free opportunity summary
+                  </Link>
+                </nav>
                 <HeaderAccountStatus />
               </div>
             </header>

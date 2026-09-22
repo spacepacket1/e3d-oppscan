@@ -1,0 +1,20 @@
+---
+selected: ai-readiness-calculator
+reason: approved idea implementation
+focus: revenue
+---
+
+# Candidates
+
+## Proposed Candidates
+
+### Candidate ai-readiness-calculator: Free AI Readiness Score calculator (dropdown-driven, no LLM) to funnel into the $99 scan
+Duplicate: no
+Dedup rationale: Not a duplicate of the existing /free flow: /free is an LLM-driven, rate-limited, freeform-intake summary generator (src/lib/scanner-analysis.ts + app/free/actions.ts). This idea proposes a separate, zero-cost, dropdown-driven score page that reuses the deterministic computeBaseScore()/ScannerMaturity scoring already defined in src/lib/scanner-scoring.ts (currently only fed by LLM-inferred maturity judgments) but feeds it directly from user-selected dropdown values instead. Proposed directly by the repo owner (spacepacket@gmail.com) via conversation on 2026-09-22, not from an automated discover/ideate run.
+Category: growth
+Analogy: e3d-liquiditywatch's free public score gauge as a lead magnet, and e3d-netdoctor's free-diagnostic/paid-report gate -- both use a free, instant, deterministic score to build trust before asking for payment.
+Attraction (1-5): 4
+Retention (1-5): 2
+Effort: low
+Revenue (1-5|n/a): 4
+Description: Add a new /readiness-score page: a short, well-defined form of dropdowns/ranges (the same five maturity dimensions already defined in src/lib/scanner-scoring.ts -- toolAdoption, processIntegration, dataReadiness, technicalCapacity, governance, each 1-5) that computes a 0-100 AI Readiness Score entirely client-/server-side via the existing computeBaseScore() function -- no LLM call, no rate limiting, no Turnstile needed, since the computation is free and deterministic. This is deliberately distinct from the existing /free flow (app/free/page.tsx), which takes freeform text intake and runs an LLM analysis pipeline to produce ranked opportunity candidates; that flow is costed and rate-limited per submission. The calculator is a zero-cost, instant, shareable top-of-funnel page whose sole job is to produce a readiness score and a single clear CTA: 'See your specific opportunities and a full plan -- unlock the $99 scan' (linking to /free for a more tailored free summary, or straight to checkout). Score bands (e.g. 0-40 'Early', 41-70 'Developing', 71-100 'Advanced') should each carry a short, generic-but-credible blurb and the same $99-scan CTA, framed as a quick self-assessment rather than a personalized analysis (the personalization is reserved for /free and the paid scan, so the free calculator doesn't cannibalize their perceived value). Implementation should reuse computeBaseScore/ScannerMaturity/SCANNER_MATURITY_DIMENSIONS from src/lib/scanner-scoring.ts as-is rather than duplicating the scoring logic, add a new route + form component following the existing app/free and src/components/free-scanner-form.tsx conventions (Next.js App Router, server action, no account/payment required), and link to it from the site's primary nav/CTAs alongside the existing /free link.
