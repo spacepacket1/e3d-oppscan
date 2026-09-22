@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  computeBaseScore,
   rankScannerCandidates,
   type ScannerCandidate,
+  type ScannerMaturity,
 } from "@/lib/scanner-scoring";
 
 const base: ScannerCandidate = {
@@ -24,6 +26,34 @@ function candidate(id: string, values: Partial<ScannerCandidate> = {}) {
 }
 
 describe("scanner deterministic scoring", () => {
+  it("maps maturity boundaries and representative intermediate values into the 0-100 base score", () => {
+    const lowest: ScannerMaturity = {
+      toolAdoption: 1,
+      processIntegration: 1,
+      dataReadiness: 1,
+      technicalCapacity: 1,
+      governance: 1,
+    };
+    const highest: ScannerMaturity = {
+      toolAdoption: 5,
+      processIntegration: 5,
+      dataReadiness: 5,
+      technicalCapacity: 5,
+      governance: 5,
+    };
+    const intermediate: ScannerMaturity = {
+      toolAdoption: 2,
+      processIntegration: 4,
+      dataReadiness: 3,
+      technicalCapacity: 5,
+      governance: 1,
+    };
+
+    expect(computeBaseScore(lowest)).toBe(0);
+    expect(computeBaseScore(highest)).toBe(100);
+    expect(computeBaseScore(intermediate)).toBe(50);
+  });
+
   it("calculates exact representative scores", () => {
     expect(rankScannerCandidates([candidate("high", {
       impact: 5, feasibility: 5, timeToValue: 5, confidence: 5, risk: 1,
