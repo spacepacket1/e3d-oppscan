@@ -1,0 +1,53 @@
+{
+  "verify": [
+    "npm install && npm run lint && npm run typecheck && npm test && npm run build"
+  ],
+  "protected_paths": [
+    "ops/**",
+    ".env*"
+  ],
+  "research_topics": "AI Opportunity Scanner (Oppscan) growth: free-tier conversion into the $99 paid scan, deterministic no-LLM lead-capture mechanics, scanner scoring/report UX, intake and checkout conversion optimization",
+  "pr": {
+    "base_branch": "main",
+    "draft": true,
+    "labels": [
+      "e3d-pilot"
+    ],
+    "backend": "auto"
+  },
+  "providers": {
+    "discover": [
+      "grok-build",
+      "claude",
+      "codex",
+      "devin"
+    ],
+    "ideate": [
+      "grok-build",
+      "claude",
+      "codex",
+      "devin"
+    ],
+    "draft": "codex",
+    "negotiate": [
+      "grok-build",
+      "claude",
+      "codex",
+      "devin",
+      "local"
+    ],
+    "review": [
+      "grok-build",
+      "claude",
+      "codex",
+      "devin"
+    ],
+    "execute": "csr"
+  },
+  "max_diff_files": 30,
+  "max_diff_lines": 3200,
+  "candidate_scoring": {
+    "provider": "grok-build",
+    "workers": 3
+  }
+}
