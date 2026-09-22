@@ -336,6 +336,17 @@ export const exampleReport: ScannerReportCopy = {
       ],
     },
   ],
+  competitiveLandscape: {
+    competitors: [
+      "Other regional job-shop fabricators competing on quote turnaround",
+      "Larger contract manufacturers with in-house estimating software",
+      "Manufacturer's reps steering repeat work toward whoever quotes fastest",
+    ],
+    analysis:
+      "In custom fabrication, quote speed is itself a competitive signal — a shop that responds in a day looks more capable than one that takes a week, independent of shop-floor quality. Larger competitors that have already standardized estimating are winning time-sensitive repeat business on responsiveness alone; Redwood's opportunity is to match that speed without Redwood's per-shop pricing knowledge, which is the thing a larger, less specialized competitor can't easily replicate.",
+  },
+  nextSteps:
+    "This report reasons about Redwood's scale from its team size and shop type, not from actual financials. A paid FutCo engagement would start by confirming real revenue, margin by job type, and current quote-to-close rate, since those numbers determine which opportunity above pays back fastest and how much automation investment is actually justified. It would also get hands-on access to the estimating workbook and job records referenced above to validate the variance-tracking and drawing-extraction opportunities against real data rather than the summarized description in this intake, and pressure-test the competitive assumptions above against who Redwood is actually losing quotes to.",
   consultationPreparation: [
     "For the last 20 to 30 quotes, what were the median elapsed turnaround, estimator touch time, number of customer follow-ups, and most common causes of delay?",
     "Which formulas, shop rates, minimum charges, scrap factors, margin rules, and approval thresholds are currently reused informally across Redwood's Excel files?",

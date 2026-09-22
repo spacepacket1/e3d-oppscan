@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { DeleteReportButton } from "@/components/delete-report-button";
 import { ScannerReport } from "@/components/scanner-report";
+import { resolvePrimaryCtaHref } from "@/content/site-config";
 import { getE3dSessionUser, isE3dAdmin } from "@/lib/e3d-session";
 import { deleteReport, toggleReportRevoked } from "@/lib/admin-actions";
 import { getScannerReportStore } from "@/lib/scanner-report-store";
@@ -54,8 +55,13 @@ export default async function AdminReportDetailPage({
               scanId={scanId}
             />
           </div>
+          {/* The real /report/[token]/consultation route re-checks the
+              customer's own email-proof cookie and records telemetry --
+              neither makes sense from an admin session previewing someone
+              else's report, so this links straight to the booking
+              destination instead of through that customer-only gate. */}
           <ScannerReport
-            consultationHref="#"
+            consultationHref={resolvePrimaryCtaHref()}
             record={record}
           />
         </div>

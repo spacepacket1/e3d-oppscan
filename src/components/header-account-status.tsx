@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 
-import { E3dLogoutButton } from "@/components/e3d-logout-button";
 import { useE3dSession } from "@/components/e3d-session-context";
 
 export function HeaderAccountStatus() {
@@ -16,9 +15,28 @@ export function HeaderAccountStatus() {
     return (
       <div className="oppscan-header__account">
         <Link className="oppscan-header__account-link" href="/account">
-          {session.email}
+          My reports
         </Link>
-        <E3dLogoutButton />
+        <Link
+          aria-label={`Account settings (${session.email})`}
+          className="oppscan-header__profile-link"
+          href="/account/profile"
+        >
+          <svg
+            aria-hidden="true"
+            fill="none"
+            height="22"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.75"
+            viewBox="0 0 24 24"
+            width="22"
+          >
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 20c1.5-4 5-6 8-6s6.5 2 8 6" />
+          </svg>
+        </Link>
       </div>
     );
   }

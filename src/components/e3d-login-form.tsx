@@ -46,44 +46,50 @@ export function E3dLoginForm() {
   }
 
   return (
-    <form className="contact-form" noValidate onSubmit={(event) => void handleSubmit(event)}>
-      <div className="form-field">
-        <label htmlFor="e3d-login-email">
-          <span>Email</span>
-        </label>
-        <input
-          autoComplete="email"
-          id="e3d-login-email"
-          onChange={(event) => setEmail(event.currentTarget.value)}
-          required
-          type="email"
-          value={email}
-        />
-      </div>
-      <div className="form-field">
-        <label htmlFor="e3d-login-password">
-          <span>Password</span>
-        </label>
-        <input
-          autoComplete="current-password"
-          id="e3d-login-password"
-          onChange={(event) => setPassword(event.currentTarget.value)}
-          required
-          type="password"
-          value={password}
-        />
-      </div>
-      {error ? (
-        <p className="form-error form-error--summary" role="alert">
-          {error}
-        </p>
-      ) : null}
-      <button className="button button--primary" disabled={isPending} type="submit">
-        {isPending ? "Signing in..." : "Sign in"}
-      </button>
+    <>
+      <form className="contact-form" noValidate onSubmit={(event) => void handleSubmit(event)}>
+        <div className="form-field">
+          <label htmlFor="e3d-login-email">
+            <span>Email</span>
+          </label>
+          <input
+            autoComplete="email"
+            id="e3d-login-email"
+            onChange={(event) => setEmail(event.currentTarget.value)}
+            required
+            type="email"
+            value={email}
+          />
+        </div>
+        <div className="form-field">
+          <label htmlFor="e3d-login-password">
+            <span>Password</span>
+          </label>
+          <input
+            autoComplete="current-password"
+            id="e3d-login-password"
+            onChange={(event) => setPassword(event.currentTarget.value)}
+            required
+            type="password"
+            value={password}
+          />
+        </div>
+        {error ? (
+          <p className="form-error form-error--summary" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <button className="button button--primary" disabled={isPending} type="submit">
+          {isPending ? "Signing in..." : "Sign in"}
+        </button>
+      </form>
+      {/* Outside the login <form>: a <dialog>'s own <form> nested inside
+          another <form> is invalid HTML -- the parser drops the inner
+          form tag entirely, so its submit button has no form to submit
+          and silently does nothing. */}
       <div className="development-note">
         No account? <E3dSignupDialog />
       </div>
-    </form>
+    </>
   );
 }

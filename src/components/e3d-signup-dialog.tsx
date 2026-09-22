@@ -41,8 +41,12 @@ export function E3dSignupDialog() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const payload = (await response.json()) as { success?: boolean; message?: string };
-      if (!response.ok || !payload.success) {
+      const payload = (await response.json()) as {
+        success?: boolean;
+        needsVerification?: boolean;
+        message?: string;
+      };
+      if (!payload.success && !payload.needsVerification) {
         setError(payload.message || "Could not create your account. Please try again.");
         return;
       }

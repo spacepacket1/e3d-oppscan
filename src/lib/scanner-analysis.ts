@@ -25,6 +25,15 @@ export type ScannerReportCopy = {
     practicalApproach: string[];
     considerations: string[];
   }>;
+  // Reports completed before competitive analysis existed have neither
+  // field -- optional so those already-delivered reports keep rendering
+  // (see scanner-report.tsx's conditional rendering) rather than requiring
+  // a data migration, same as practicalApproach's string|string[] above.
+  competitiveLandscape?: {
+    competitors: string[];
+    analysis: string;
+  };
+  nextSteps?: string;
   consultationPreparation: string[];
   closingNote: string;
 };
@@ -45,9 +54,15 @@ export type ScannerLlmRequest = {
   ];
 };
 
+export type ScannerLlmCallContext = {
+  scanId: string;
+  call: "candidates" | "report" | "free-candidates";
+};
+
 export type ScannerLlmTransport = (
   request: ScannerLlmRequest,
   signal: AbortSignal,
+  context?: ScannerLlmCallContext,
 ) => Promise<string>;
 
 export type ScannerAnalysisFailureCategory =
@@ -85,7 +100,7 @@ const CANDIDATE_SCHEMA_INSTRUCTIONS =
   "Do not compute or return an overall score for maturity — only the five component ratings.";
 
 const REPORT_SCHEMA_INSTRUCTIONS =
-  'Return one object containing exactly: "executiveSummary", "recommendedStartingPoint", "opportunities", "consultationPreparation", and "closingNote". ' +
+  'Return one object containing exactly: "executiveSummary", "recommendedStartingPoint", "opportunities", "competitiveLandscape", "nextSteps", "consultationPreparation", and "closingNote". ' +
   'Each opportunity must contain exactly: "candidateId", "headline", "whyItMatters", "practicalApproach", and "considerations". ' +
   "Return exactly one opportunity for each ranked candidate, in the supplied order, without changing IDs, scores, or ranks. Consultation preparation must contain 2-5 strings and considerations 1-4 strings. " +
   "This is a paid, in-depth advisory report the customer is paying for and will read closely, so write comprehensively and specifically: " +
@@ -93,6 +108,11 @@ const REPORT_SCHEMA_INSTRUCTIONS =
   "whyItMatters should be several sentences of concrete, specific reasoning grounded in the intake details, not generic advice. " +
   '"practicalApproach" must be an array of 3-6 short, sequential, concrete action steps (each a single specific sentence or short instruction, not a paragraph) grounded in the intake details, ordered as the business should actually do them. ' +
   "considerations must contain 3-4 specific, non-obvious risks or dependencies. consultationPreparation must contain 4-5 pointed questions. " +
+  '"competitiveLandscape" must contain exactly "competitors" and "analysis". ' +
+  '"competitors" is an array of 2-6 short strings: prioritize any competitors the customer named in their own intake, using their exact names; you may add further named real companies only if you are confident they actually compete in this specific business\'s industry and market — never invent or guess at a company name, and when you cannot identify enough specific real competitors this way, list general competitor categories instead (e.g. "independent fencing contractors in the region") rather than a fabricated name. ' +
+  '"analysis" is 2-4 sentences connecting these competitors to the opportunities above — what a competitor already ahead on AI would likely be doing differently, or where this business could differentiate. ' +
+  '"nextSteps" is a short paragraph (3-5 sentences) describing what a paid FutCo engagement would investigate beyond this report — for example, this business\'s actual revenue and margins (this report only reasons about rough scale from context, never a confirmed figure), deeper access to its systems and data, and validating the competitive assumptions above — and how that additional information would sharpen prioritization and the implementation plan. Do not repeat consultationPreparation questions verbatim; this is about what FutCo would gather, not what the reader should prepare. ' +
+  "You may reason about this business's likely revenue scale from its described size, industry, and business model to calibrate impact/ROI language elsewhere in the report (e.g. describing a saving as meaningful relative to typical revenue at that scale), but never state a specific revenue figure as a known fact since none was provided — treat it only as a rough assumption, and note in nextSteps that a paid engagement would confirm actual financials. " +
   "Avoid filler, repetition, and generic AI-strategy platitudes; every sentence should reference something specific from the business's actual intake. " +
   "headline must be a short, benefit-focused title only (under 100 characters) — the application already displays rank and numeric ratings separately, so do not restate rank, scores, or ratings inside headline. " +
   "The application-computed AI base score and potential score supplied alongside the ranked candidates are context only — you may reference them narratively (e.g. in executiveSummary or closingNote) but must not restate, recompute, or contradict the numbers, and must not invent a different score.";
@@ -122,7 +142,6 @@ export async function generateScannerAnalysis(
   values: ScannerIntakeFormValues,
   options: { transport?: ScannerLlmTransport; timeoutMs?: number } = {},
 ): Promise<ScannerAnalysisResult> {
-  void scanId;
   const transport = options.transport ?? createScannerLlmTransport();
   const timeoutMs = options.timeoutMs ?? getLlmTimeoutMs();
   const envelope = buildUntrustedIntakeEnvelope(values);
@@ -142,6 +161,7 @@ export async function generateScannerAnalysis(
       ],
     },
     timeoutMs,
+    { scanId, call: "candidates" },
   );
   const { candidates, maturity } = validateCandidateResponse(
     parseModelJson(candidatesText),
@@ -166,6 +186,7 @@ export async function generateScannerAnalysis(
       ],
     },
     timeoutMs,
+    { scanId, call: "report" },
   );
   return {
     candidates: ranked,
@@ -211,6 +232,7 @@ export async function generateFreeScannerCandidates(
       ],
     },
     timeoutMs,
+    { scanId: "free", call: "free-candidates" },
   );
   // Free tier doesn't show a base score; maturity is validated (since it's
   // part of the shared candidate schema/prompt) but otherwise unused here.
@@ -242,7 +264,7 @@ export function createScannerLlmTransport(
       "Scanner analysis is not configured.",
     );
   }
-  return async (request, signal) => {
+  return async (request, signal, context) => {
     let response: Response;
     try {
       response = await fetchImpl(url, {
@@ -274,6 +296,7 @@ export function createScannerLlmTransport(
     } catch {
       throw new ScannerAnalysisError("llm_transport");
     }
+    logScannerLlmUsage(request.model, context, payload);
     const content = readTransportContent(payload);
     if (!content) throw new ScannerAnalysisError("llm_transport");
     return content;
@@ -282,6 +305,52 @@ export function createScannerLlmTransport(
 
 function getModel() {
   return process.env.SCANNER_LLM_MODEL?.trim() || "scanner-analysis";
+}
+
+// OpenAI's chat completions response includes token usage; nothing else in
+// this codebase ever reads or stores it, so cost was previously impossible
+// to answer without pulling the account's own usage dashboard. This logs it
+// per call (visible via `pm2 logs`) and, only if the account's actual
+// per-token pricing is configured, an estimated cost -- never a guessed
+// price, since a wrong hardcoded rate would be worse than none at all.
+function logScannerLlmUsage(
+  model: string,
+  context: ScannerLlmCallContext | undefined,
+  payload: unknown,
+) {
+  if (!isObject(payload) || !isObject(payload.usage)) return;
+  const usage = payload.usage;
+  const promptTokens = typeof usage.prompt_tokens === "number" ? usage.prompt_tokens : null;
+  const completionTokens =
+    typeof usage.completion_tokens === "number" ? usage.completion_tokens : null;
+  const totalTokens =
+    typeof usage.total_tokens === "number"
+      ? usage.total_tokens
+      : (promptTokens ?? 0) + (completionTokens ?? 0) || null;
+
+  const inputCostPer1M = Number(process.env.SCANNER_LLM_INPUT_COST_PER_1M?.trim());
+  const outputCostPer1M = Number(process.env.SCANNER_LLM_OUTPUT_COST_PER_1M?.trim());
+  const pricingConfigured =
+    Number.isFinite(inputCostPer1M) && Number.isFinite(outputCostPer1M);
+  const estimatedCostUsd =
+    pricingConfigured && promptTokens !== null && completionTokens !== null
+      ? (promptTokens / 1_000_000) * inputCostPer1M +
+        (completionTokens / 1_000_000) * outputCostPer1M
+      : null;
+
+  console.log(
+    "scanner-llm usage:",
+    JSON.stringify({
+      model,
+      scanId: context?.scanId,
+      call: context?.call,
+      promptTokens,
+      completionTokens,
+      totalTokens,
+      estimatedCostUsd: estimatedCostUsd !== null ? Number(estimatedCostUsd.toFixed(4)) : null,
+      pricingConfigured,
+    }),
+  );
 }
 
 // The paid intake flow makes two sequential calls per report; nginx allows
@@ -302,6 +371,7 @@ async function callWithTimeout(
   transport: ScannerLlmTransport,
   request: ScannerLlmRequest,
   timeoutMs: number,
+  context?: ScannerLlmCallContext,
 ) {
   const controller = new AbortController();
   let timer!: ReturnType<typeof setTimeout>;
@@ -312,7 +382,10 @@ async function callWithTimeout(
     }, timeoutMs);
   });
   try {
-    return await Promise.race([transport(request, controller.signal), timeout]);
+    return await Promise.race([
+      transport(request, controller.signal, context),
+      timeout,
+    ]);
   } catch (error) {
     if (error instanceof ScannerAnalysisError) throw error;
     if (
@@ -424,6 +497,8 @@ export function validateReportResponse(
     "executiveSummary",
     "recommendedStartingPoint",
     "opportunities",
+    "competitiveLandscape",
+    "nextSteps",
     "consultationPreparation",
     "closingNote",
   ]);
@@ -459,6 +534,8 @@ export function validateReportResponse(
       2000,
     ),
     opportunities,
+    competitiveLandscape: validateCompetitiveLandscape(value.competitiveLandscape),
+    nextSteps: boundedString(value.nextSteps, 1200),
     consultationPreparation: boundedStringArray(
       value.consultationPreparation,
       2,
@@ -466,6 +543,16 @@ export function validateReportResponse(
       400,
     ),
     closingNote: boundedString(value.closingNote, 900),
+  };
+}
+
+function validateCompetitiveLandscape(
+  value: unknown,
+): { competitors: string[]; analysis: string } {
+  assertExactObject(value, ["competitors", "analysis"]);
+  return {
+    competitors: boundedStringArray(value.competitors, 2, 6, 80),
+    analysis: boundedString(value.analysis, 900),
   };
 }
 

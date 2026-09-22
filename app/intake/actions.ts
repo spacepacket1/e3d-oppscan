@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 
+import { getE3dSessionUser, isE3dAdmin } from "@/lib/e3d-session";
 import { deliverScannerIntakeSubmission } from "@/lib/scanner-intake-delivery";
 import {
   emptyScannerIntakeEnrichment,
@@ -95,7 +96,16 @@ export async function submitScannerIntakeForm(
   }
 
   try {
-    return await orchestrateScannerIntake(validation.values, formData);
+    // Re-checked here from the request's own cookie header, independent of
+    // anything the client submitted -- an admin session lets FutCo staff
+    // run real scans without a Stripe payment, but that must never be
+    // decided by trusting client-supplied form data.
+    const session = await getE3dSessionUser(requestHeaders.get("cookie") || "");
+    const isAdmin = isE3dAdmin(session);
+    return await orchestrateScannerIntake(validation.values, formData, {
+      isAdminBypass: isAdmin,
+      adminEmail: isAdmin && session.authenticated ? session.email : undefined,
+    });
   } catch {
     return scannerIntakeErrorState(validation.values, {
       form: "The scanner report could not be prepared right now. Please try again.",
@@ -112,6 +122,11 @@ type ScannerOrchestrationOptions = {
   leaseWaitMs?: number;
   pollIntervalMs?: number;
   llmTimeoutMs?: number;
+  // Set only by submitScannerIntakeForm, from a session it re-checked
+  // itself against the request's cookie header -- never trust these two
+  // as a bare options object coming from anywhere else.
+  isAdminBypass?: boolean;
+  adminEmail?: string;
 };
 
 export async function orchestrateScannerIntake(
@@ -175,51 +190,71 @@ export async function orchestrateScannerIntake(
   let analysisStarted = false;
   try {
     const settled = await store.hasSettledSpend(scanId);
+    const isAdminBypass = options.isAdminBypass ?? false;
     // Needed for completeReport's checkoutEmail below on every path,
     // including a retry of an already-settled spend (e.g. after a prior
     // attempt's generation timed out) -- not just the first-time branch.
-    const checkoutContext = await getScannerCheckoutContext(values.creditKey);
+    // The admin path never had a Stripe checkout to look up, so it uses
+    // the admin's own (server-verified) session email instead.
+    const checkoutEmail = isAdminBypass
+      ? options.adminEmail || values.deliveryEmail
+      : (await getScannerCheckoutContext(values.creditKey)).customerEmail;
     if (!settled) {
-      if (checkoutContext.customerEmail !== values.deliveryEmail) {
-        await safeRelease(store, scanId, ownerId);
-        return scannerIntakeErrorState(values, {
-          deliveryEmail:
-            "The report email must match the email Stripe collected during checkout.",
+      if (isAdminBypass) {
+        const requestId = buildScannerIntakeRequestId(values.creditKey, values);
+        const deliveryResult = await deliverScannerIntakeSubmission(values, {
+          requestId,
+          checkoutEmail,
+          enrichment: readEnrichmentFromFormData(formData),
         });
-      }
-      const balance = await getScannerBalance(values.creditKey);
-      if (balance.credits <= 0) {
-        await safeRelease(store, scanId, ownerId);
-        return scannerIntakeErrorState(values, {
-          form: "This payment key does not have an unspent scanner credit available.",
+        if (!deliveryResult.ok) {
+          await safeRelease(store, scanId, ownerId);
+          return scannerIntakeErrorState(values, {
+            form: deliveryResult.message,
+          });
+        }
+      } else {
+        if (checkoutEmail !== values.deliveryEmail) {
+          await safeRelease(store, scanId, ownerId);
+          return scannerIntakeErrorState(values, {
+            deliveryEmail:
+              "The report email must match the email Stripe collected during checkout.",
+          });
+        }
+        const balance = await getScannerBalance(values.creditKey);
+        if (balance.credits <= 0) {
+          await safeRelease(store, scanId, ownerId);
+          return scannerIntakeErrorState(values, {
+            form: "This payment key does not have an unspent scanner credit available.",
+          });
+        }
+        const requestId = buildScannerIntakeRequestId(values.creditKey, values);
+        const deliveryResult = await deliverScannerIntakeSubmission(values, {
+          requestId,
+          checkoutEmail,
+          enrichment: readEnrichmentFromFormData(formData),
         });
-      }
-      const requestId = buildScannerIntakeRequestId(values.creditKey, values);
-      const deliveryResult = await deliverScannerIntakeSubmission(values, {
-        requestId,
-        checkoutEmail: checkoutContext.customerEmail,
-        enrichment: readEnrichmentFromFormData(formData),
-      });
-      if (!deliveryResult.ok) {
-        await safeRelease(store, scanId, ownerId);
-        return scannerIntakeErrorState(values, {
-          form: deliveryResult.message,
+        if (!deliveryResult.ok) {
+          await safeRelease(store, scanId, ownerId);
+          return scannerIntakeErrorState(values, {
+            form: deliveryResult.message,
+          });
+        }
+        const spend = await spendScannerIntakeCredit({
+          creditKey: values.creditKey,
+          requestId,
+          metadata: {
+            kind: "scanner_intake_submission",
+            companyName: values.companyName,
+            companyWebsite: values.companyWebsite,
+            deliveryEmail: values.deliveryEmail,
+            checkoutEmail,
+          },
         });
-      }
-      const spend = await spendScannerIntakeCredit({
-        creditKey: values.creditKey,
-        requestId,
-        metadata: {
-          kind: "scanner_intake_submission",
-          companyName: values.companyName,
-          companyWebsite: values.companyWebsite,
-          deliveryEmail: values.deliveryEmail,
-          checkoutEmail: checkoutContext.customerEmail,
-        },
-      });
-      if (spend.creditsSpent <= 0) {
-        await safeRelease(store, scanId, ownerId);
-        return retryableError(values);
+        if (spend.creditsSpent <= 0) {
+          await safeRelease(store, scanId, ownerId);
+          return retryableError(values);
+        }
       }
       await store.markSpendSettled(scanId, now().toISOString());
     }
@@ -248,7 +283,7 @@ export async function orchestrateScannerIntake(
         ownerId,
         {
           ...analysis,
-          checkoutEmail: checkoutContext.customerEmail,
+          checkoutEmail,
           companyName: values.companyName,
         },
         hashReportAccessToken(token),

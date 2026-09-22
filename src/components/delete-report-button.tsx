@@ -31,7 +31,7 @@ export function DeleteReportButton({
 
   return (
     <button
-      className="button button--ghost"
+      className="link-action"
       disabled={isPending}
       onClick={() => void handleDelete()}
       type="button"

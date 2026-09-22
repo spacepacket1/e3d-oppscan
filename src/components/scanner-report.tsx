@@ -201,6 +201,17 @@ export function ScannerReport({
           </section>
         );
       })}
+      {record.report.competitiveLandscape ? (
+        <section className="content-panel">
+          <h2>Competitive landscape</h2>
+          <ul>
+            {record.report.competitiveLandscape.competitors.map((competitor) => (
+              <li key={competitor}>{competitor}</li>
+            ))}
+          </ul>
+          <p>{record.report.competitiveLandscape.analysis}</p>
+        </section>
+      ) : null}
       <section className="content-panel">
         <h2>{scannerContent.reportImplementation.heading}</h2>
         {scannerContent.reportImplementation.body.map((paragraph) => (
@@ -208,12 +219,19 @@ export function ScannerReport({
         ))}
       </section>
       <section className="content-panel">
-        <h2>Prepare for your consultation</h2>
+        <h2>Next steps</h2>
+        <h3>Prepare for your consultation</h3>
         <ul>
           {record.report.consultationPreparation.map((question) => (
             <li key={question}>{question}</li>
           ))}
         </ul>
+        {record.report.nextSteps ? (
+          <>
+            <h3>What a paid engagement digs into further</h3>
+            <p>{record.report.nextSteps}</p>
+          </>
+        ) : null}
         <p>{record.report.closingNote}</p>
         <Link className="button button--primary" href={consultationHref}>
           {ctaLabel}

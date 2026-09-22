@@ -37,6 +37,9 @@ export function AdminReportsTable({
             <td>{report.revoked ? "Revoked" : "Active"}</td>
             <td>
               <Link href={`/admin/report/${report.scanId}`}>View</Link>{" "}
+              <Link href={`/admin/report/${report.scanId}/download`}>
+                Download
+              </Link>{" "}
               <form
                 action={toggleReportRevoked.bind(
                   null,
@@ -45,7 +48,7 @@ export function AdminReportsTable({
                 )}
                 style={{ display: "inline" }}
               >
-                <button className="button button--ghost" type="submit">
+                <button className="link-action" type="submit">
                   {report.revoked ? "Restore" : "Revoke"}
                 </button>
               </form>{" "}

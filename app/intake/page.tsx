@@ -1,9 +1,13 @@
+import { randomBytes } from "node:crypto";
+
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Script from "next/script";
 
 import { ScannerIntakeForm } from "@/components/scanner-intake-form";
 import { SectionHeading } from "@/components/section-heading";
 import { scannerContent } from "@/content/scanner-content";
+import { getE3dSessionUser, isE3dAdmin } from "@/lib/e3d-session";
 import { emptyScannerIntakeFormValues } from "@/lib/scanner-intake";
 import { buildPageMetadata } from "@/lib/seo";
 
@@ -32,6 +36,26 @@ export default async function ScannerIntakePage({
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && process.env.TURNSTILE_SECRET_KEY
       ? process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
       : "";
+  const stripeSessionId = resolvedSearchParams?.stripe_session_id || "";
+
+  // An admin arriving without a Stripe session (i.e. via the homepage's
+  // direct "go straight to intake" link, not a real checkout redirect)
+  // skips the payment-key claim UI entirely. submitScannerIntakeForm
+  // independently re-verifies admin status server-side before honoring
+  // this -- this bypass key is only ever a UI convenience, never itself
+  // a credential the server trusts.
+  let initialVerifiedAccess: { creditKey: string; checkoutEmailHint: string; credits: number } | undefined;
+  if (!stripeSessionId) {
+    const headerList = await headers();
+    const session = await getE3dSessionUser(headerList.get("cookie") || "");
+    if (isE3dAdmin(session) && session.authenticated) {
+      initialVerifiedAccess = {
+        creditKey: `admin-bypass:${randomBytes(16).toString("hex")}`,
+        checkoutEmailHint: session.email,
+        credits: 1,
+      };
+    }
+  }
 
   return (
     <main className="page-main">
@@ -66,8 +90,9 @@ export default async function ScannerIntakePage({
               values: emptyScannerIntakeFormValues,
               errors: {},
             }}
-            stripeSessionId={resolvedSearchParams?.stripe_session_id || ""}
+            stripeSessionId={stripeSessionId}
             turnstileSiteKey={turnstileSiteKey}
+            initialVerifiedAccess={initialVerifiedAccess}
           />
         </div>
       </section>

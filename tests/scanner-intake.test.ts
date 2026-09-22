@@ -21,6 +21,7 @@ const securityMocks = vi.hoisted(() => ({
   verifyTurnstileToken: vi.fn(),
 }));
 const analysisMocks = vi.hoisted(() => ({ generateScannerAnalysis: vi.fn() }));
+const e3dSessionMocks = vi.hoisted(() => ({ getE3dSessionUser: vi.fn() }));
 
 vi.mock("next/headers", () => ({
   headers: headersMock,
@@ -58,6 +59,12 @@ vi.mock("@/lib/scanner-analysis", async () => {
     "@/lib/scanner-analysis",
   );
   return { ...actual, ...analysisMocks };
+});
+vi.mock("@/lib/e3d-session", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/e3d-session")>(
+    "@/lib/e3d-session",
+  );
+  return { ...actual, ...e3dSessionMocks };
 });
 
 import ScannerIntakePage, {
@@ -175,6 +182,7 @@ describe("Phase 5 scanner intake acceptance", () => {
     analysisMocks.generateScannerAnalysis.mockResolvedValue(
       buildAnalysisResult(),
     );
+    e3dSessionMocks.getE3dSessionUser.mockResolvedValue({ authenticated: false });
   });
 
   afterEach(() => {
@@ -186,6 +194,7 @@ describe("Phase 5 scanner intake acceptance", () => {
     paymentsMocks.getScannerCheckoutContext.mockReset();
     paymentsMocks.spendScannerIntakeCredit.mockReset();
     deliveryMocks.deliverScannerIntakeSubmission.mockReset();
+    e3dSessionMocks.getE3dSessionUser.mockReset();
     securityMocks.isRateLimited.mockReset();
     securityMocks.isTrustedServerActionOrigin.mockReset();
     securityMocks.verifyTurnstileToken.mockReset();
@@ -1007,6 +1016,52 @@ describe("Phase 5 scanner intake acceptance", () => {
     );
     expect(paymentsMocks.spendScannerIntakeCredit).toHaveBeenCalledTimes(1);
     expect(analysisMocks.generateScannerAnalysis).toHaveBeenCalledTimes(1);
+  });
+
+  it("orchestrateScannerIntake skips Stripe entirely when told this is an admin bypass", async () => {
+    deliveryMocks.deliverScannerIntakeSubmission.mockResolvedValue({ ok: true });
+    const store = new InMemoryScannerReportStore();
+
+    const result = await orchestrateScannerIntake(
+      validValues,
+      buildFormData(validValues),
+      { store, isAdminBypass: true, adminEmail: "admin@futco.ai" },
+    );
+
+    expect(result.status).toBe("success");
+    expect(result.reportUrl).toMatch(/^\/report\/[A-Za-z0-9_-]+$/);
+    expect(paymentsMocks.getScannerCheckoutContext).not.toHaveBeenCalled();
+    expect(paymentsMocks.getScannerBalance).not.toHaveBeenCalled();
+    expect(paymentsMocks.spendScannerIntakeCredit).not.toHaveBeenCalled();
+    expect(deliveryMocks.deliverScannerIntakeSubmission).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ checkoutEmail: "admin@futco.ai" }),
+    );
+  });
+
+  it("submitScannerIntakeForm only takes the admin bypass when its own session check (not client input) says admin", async () => {
+    configureSuccessfulPurchase();
+    e3dSessionMocks.getE3dSessionUser.mockResolvedValueOnce({
+      authenticated: true,
+      email: "admin@futco.ai",
+      roles: ["admin"],
+    });
+    setScannerReportStoreForTests(new InMemoryScannerReportStore());
+
+    const result = await submitScannerIntakeForm(idleState(), buildFormData(validValues));
+
+    expect(result.status).toBe("success");
+    expect(paymentsMocks.getScannerCheckoutContext).not.toHaveBeenCalled();
+    expect(paymentsMocks.getScannerBalance).not.toHaveBeenCalled();
+    expect(paymentsMocks.spendScannerIntakeCredit).not.toHaveBeenCalled();
+
+    // A non-admin session (the default from beforeEach) must still pay,
+    // even though nothing else about this request changed.
+    setScannerReportStoreForTests(new InMemoryScannerReportStore());
+    e3dSessionMocks.getE3dSessionUser.mockResolvedValueOnce({ authenticated: false });
+    const nonAdmin = await submitScannerIntakeForm(idleState(), buildFormData(validValues));
+    expect(nonAdmin.status).toBe("success");
+    expect(paymentsMocks.spendScannerIntakeCredit).toHaveBeenCalledOnce();
   });
 
   it("retries a settled spend after generation failure without another spend or webhook", async () => {

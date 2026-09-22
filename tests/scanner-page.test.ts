@@ -1,5 +1,18 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const headersMock = vi.hoisted(() => vi.fn(() => new Headers()));
+const e3dSessionMocks = vi.hoisted(() => ({ getE3dSessionUser: vi.fn() }));
+
+vi.mock("next/headers", () => ({
+  headers: headersMock,
+}));
+vi.mock("@/lib/e3d-session", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/e3d-session")>(
+    "@/lib/e3d-session",
+  );
+  return { ...actual, ...e3dSessionMocks };
+});
 
 import ScannerPage, {
   generateMetadata as generateScannerMetadata,
@@ -13,9 +26,15 @@ import {
 import { getCanonicalUrl } from "@/lib/seo";
 
 describe("Phase 3 scanner landing page", () => {
+  beforeEach(() => {
+    e3dSessionMocks.getE3dSessionUser.mockResolvedValue({ authenticated: false });
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
+    headersMock.mockReset().mockReturnValue(new Headers());
+    e3dSessionMocks.getE3dSessionUser.mockReset();
   });
 
   it("renders the scanner page with the live-fetched price instead of a hardcoded duplicate", async () => {
@@ -168,6 +187,47 @@ describe("Phase 3 scanner landing page", () => {
         }),
       }),
     );
+  });
+
+  it("sends a signed-in admin straight to the intake form instead of Stripe checkout", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            products: [
+              {
+                product: "scanner",
+                displayName: "AI Opportunity Scanner",
+                stripePacks: [
+                  {
+                    id: "single",
+                    name: "AI Opportunity Scan",
+                    description: "1 AI opportunity scan report + consultation",
+                    credits: 500,
+                    amountUsdCents: 9900,
+                    currency: "usd",
+                  },
+                ],
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    e3dSessionMocks.getE3dSessionUser.mockResolvedValue({
+      authenticated: true,
+      email: "admin@futco.ai",
+      roles: ["admin"],
+    });
+
+    const page = await ScannerPage({ searchParams: Promise.resolve({}) });
+    const markup = renderToStaticMarkup(page);
+
+    expect(markup).toContain("Free (admin)");
+    expect(markup).toContain('href="/intake"');
+    expect(markup).not.toContain("$99.00");
   });
 
   it("publishes canonical metadata for the scanner route", () => {

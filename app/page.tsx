@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 
 import { SectionHeading } from "@/components/section-heading";
 import { scannerContent } from "@/content/scanner-content";
+import { getE3dSessionUser, isE3dAdmin } from "@/lib/e3d-session";
 import { buildPageMetadata } from "@/lib/seo";
 import { getScannerOffer } from "@/lib/scanner-payments";
 
@@ -27,10 +29,13 @@ export function generateMetadata(): Metadata {
 export default async function AiOpportunityScannerPage({
   searchParams,
 }: ScannerPageProps) {
-  const [offer, resolvedSearchParams] = await Promise.all([
+  const [offer, resolvedSearchParams, headerList] = await Promise.all([
     getScannerOffer(),
     searchParams,
+    headers(),
   ]);
+  const session = await getE3dSessionUser(headerList.get("cookie") || "");
+  const isAdmin = isE3dAdmin(session);
   const notice =
     resolvedSearchParams?.checkout_error === "1"
       ? scannerContent.notices.failed
@@ -52,16 +57,25 @@ export default async function AiOpportunityScannerPage({
             />
             <div className="scanner-price-card">
               <p className="scanner-price-card__label">Price</p>
-              <p className="scanner-price-card__amount">{offer.formattedPrice}</p>
-              <p className="scanner-price-card__detail">
-                {offer.pack.description}. Complete payment first, then submit the short
-                intake.
+              <p className="scanner-price-card__amount">
+                {isAdmin ? "Free (admin)" : offer.formattedPrice}
               </p>
-              <form action={startScannerCheckout}>
-                <button className="button button--primary" type="submit">
+              <p className="scanner-price-card__detail">
+                {isAdmin
+                  ? "Signed in as an admin — no payment needed. Go straight to the intake form."
+                  : `${offer.pack.description}. Complete payment first, then submit the short intake.`}
+              </p>
+              {isAdmin ? (
+                <Link className="button button--primary" href="/intake">
                   {scannerContent.hero.ctaLabel}
-                </button>
-              </form>
+                </Link>
+              ) : (
+                <form action={startScannerCheckout}>
+                  <button className="button button--primary" type="submit">
+                    {scannerContent.hero.ctaLabel}
+                  </button>
+                </form>
+              )}
               <Link className="button button--secondary" href="/free">
                 Try a free simplified summary first
               </Link>

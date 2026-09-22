@@ -7,6 +7,7 @@ import {
   ScannerAnalysisError,
   buildFreeUntrustedIntakeEnvelope,
   buildUntrustedIntakeEnvelope,
+  createScannerLlmTransport,
   generateFreeScannerCandidates,
   generateScannerAnalysis,
   validateCandidateResponse,
@@ -78,6 +79,12 @@ function reportFor(ranked = rankScannerCandidates(candidates)) {
       ],
       considerations: ["Protect sensitive data."],
     })),
+    competitiveLandscape: {
+      competitors: ["Acme's regional peers", "A larger national provider"],
+      analysis: "Competitors are not yet differentiated on AI adoption.",
+    },
+    nextSteps:
+      "A paid engagement would confirm actual revenue and margins, get direct access to the systems described above, and validate the competitive assumptions in this report.",
     consultationPreparation: [
       "Who owns the workflow?",
       "What is the baseline?",
@@ -169,6 +176,11 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
         ],
         considerations: [long(500), long(500), long(500)],
       })),
+      competitiveLandscape: {
+        competitors: [long(80), long(80), long(80), long(80), long(80), long(80)],
+        analysis: long(900),
+      },
+      nextSteps: long(1200),
       consultationPreparation: [long(400), long(400), long(400), long(400)],
       closingNote: long(900),
     };
@@ -181,6 +193,14 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
         { ...comprehensive, recommendedStartingPoint: long(2001) },
       ],
       ["closingNote", { ...comprehensive, closingNote: long(901) }],
+      ["nextSteps", { ...comprehensive, nextSteps: long(1201) }],
+      [
+        "competitiveLandscape.analysis",
+        {
+          ...comprehensive,
+          competitiveLandscape: { ...comprehensive.competitiveLandscape, analysis: long(901) },
+        },
+      ],
     ];
     for (const [, response] of overLimits) {
       expect(() => validateReportResponse(response, ranked)).toThrow(
@@ -610,6 +630,101 @@ describe("scanner analysis, report storage, and delivery contracts", () => {
     expect(markup).toContain("40/100");
     expect(markup).toContain("70/100");
     expect(markup).toContain("Points toward 100");
+  });
+});
+
+describe("scanner LLM usage/cost logging", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  function stubTransportEnv() {
+    vi.stubEnv("SCANNER_LLM_URL", "https://llm.example.com/v1/chat/completions");
+    vi.stubEnv("SCANNER_LLM_API_KEY", "test-key");
+  }
+
+  it("logs raw token counts with no cost when pricing is not configured", async () => {
+    stubTransportEnv();
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: "{}" } }],
+          usage: { prompt_tokens: 1000, completion_tokens: 500, total_tokens: 1500 },
+        }),
+        { status: 200 },
+      ),
+    );
+    const transport = createScannerLlmTransport(fetchImpl as unknown as typeof fetch);
+
+    await transport(
+      { model: "gpt-test", messages: [{ role: "system", content: "s" }, { role: "user", content: "u" }] },
+      new AbortController().signal,
+      { scanId: "scan_test", call: "candidates" },
+    );
+
+    const usageLine = logSpy.mock.calls.find(([label]) => label === "scanner-llm usage:");
+    expect(usageLine).toBeDefined();
+    const logged = JSON.parse(usageLine![1] as string);
+    expect(logged).toMatchObject({
+      model: "gpt-test",
+      scanId: "scan_test",
+      call: "candidates",
+      promptTokens: 1000,
+      completionTokens: 500,
+      totalTokens: 1500,
+      estimatedCostUsd: null,
+      pricingConfigured: false,
+    });
+  });
+
+  it("computes an estimated cost only when both per-token prices are configured", async () => {
+    stubTransportEnv();
+    vi.stubEnv("SCANNER_LLM_INPUT_COST_PER_1M", "2");
+    vi.stubEnv("SCANNER_LLM_OUTPUT_COST_PER_1M", "8");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: "{}" } }],
+          usage: { prompt_tokens: 1_000_000, completion_tokens: 500_000, total_tokens: 1_500_000 },
+        }),
+        { status: 200 },
+      ),
+    );
+    const transport = createScannerLlmTransport(fetchImpl as unknown as typeof fetch);
+
+    await transport(
+      { model: "gpt-test", messages: [{ role: "system", content: "s" }, { role: "user", content: "u" }] },
+      new AbortController().signal,
+      { scanId: "scan_test", call: "report" },
+    );
+
+    const usageLine = logSpy.mock.calls.find(([label]) => label === "scanner-llm usage:");
+    const logged = JSON.parse(usageLine![1] as string);
+    // 1M prompt tokens * $2/1M + 0.5M completion tokens * $8/1M = $2 + $4 = $6.
+    expect(logged.estimatedCostUsd).toBe(6);
+    expect(logged.pricingConfigured).toBe(true);
+  });
+
+  it("does not log or throw when the response has no usage field", async () => {
+    stubTransportEnv();
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }] }), {
+        status: 200,
+      }),
+    );
+    const transport = createScannerLlmTransport(fetchImpl as unknown as typeof fetch);
+
+    const content = await transport(
+      { model: "gpt-test", messages: [{ role: "system", content: "s" }, { role: "user", content: "u" }] },
+      new AbortController().signal,
+    );
+
+    expect(content).toBe("{}");
+    expect(logSpy.mock.calls.find(([label]) => label === "scanner-llm usage:")).toBeUndefined();
   });
 });
 
