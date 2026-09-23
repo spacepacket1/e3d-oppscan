@@ -157,12 +157,10 @@ export function FreeScannerForm({
             id="companyWebsite"
             maxLength={200}
             name="companyWebsite"
-            onChange={(event) =>
-              setValues((current) => ({
-                ...current,
-                companyWebsite: event.currentTarget.value,
-              }))
-            }
+            onChange={(event) => {
+              const nextValue = event.currentTarget.value;
+              setValues((current) => ({ ...current, companyWebsite: nextValue }));
+            }}
             type="url"
             value={values.companyWebsite}
           />
@@ -197,12 +195,10 @@ export function FreeScannerForm({
               id={field.key}
               maxLength={field.maxLength}
               name={field.key}
-              onChange={(event) =>
-                setValues((current) => ({
-                  ...current,
-                  [field.key]: event.currentTarget.value,
-                }))
-              }
+              onChange={(event) => {
+                const nextValue = event.currentTarget.value;
+                setValues((current) => ({ ...current, [field.key]: nextValue }));
+              }}
               rows={field.rows ?? 4}
               value={values[field.key]}
             />
@@ -211,12 +207,10 @@ export function FreeScannerForm({
               id={field.key}
               maxLength={field.maxLength}
               name={field.key}
-              onChange={(event) =>
-                setValues((current) => ({
-                  ...current,
-                  [field.key]: event.currentTarget.value,
-                }))
-              }
+              onChange={(event) => {
+                const nextValue = event.currentTarget.value;
+                setValues((current) => ({ ...current, [field.key]: nextValue }));
+              }}
               type="text"
               value={values[field.key]}
             />
