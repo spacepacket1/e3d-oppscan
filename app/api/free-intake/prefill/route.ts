@@ -33,6 +33,7 @@ export async function POST(request: Request) {
   const ipHash = createHash("sha256").update(clientIp).digest("hex");
 
   if (isFreePrefillRateLimited(clientIp)) {
+    console.error("Free intake prefill rejected: rate limited, ip hash", ipHash);
     return NextResponse.json(
       { ok: false, reason: "rate_limited" },
       { status: 429 },
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
 
   const internalServiceKey = process.env.E3D_SCANNER_INTERNAL_SERVICE_KEY?.trim() || "";
   if (!internalServiceKey) {
+    console.error("Free intake prefill rejected: E3D_SCANNER_INTERNAL_SERVICE_KEY is not configured.");
     return NextResponse.json({ ok: false, reason: "service_unavailable" }, { status: 500 });
   }
 
@@ -64,18 +66,32 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({ website, ipHash }),
     });
-  } catch {
+  } catch (error) {
+    console.error("Free intake prefill: upstream fetch threw:", endpointUrl, error);
     return NextResponse.json({ ok: false, reason: "network_error" }, { status: 502 });
   }
 
   let upstreamPayload: UpstreamPrefillResponse;
   try {
     upstreamPayload = (await response.json()) as UpstreamPrefillResponse;
-  } catch {
+  } catch (error) {
+    console.error(
+      "Free intake prefill: upstream response was not valid JSON, status",
+      response.status,
+      error,
+    );
     return NextResponse.json({ ok: false, reason: "prefill_failed" }, { status: 502 });
   }
 
   if (!response.ok || !upstreamPayload.ok) {
+    console.error(
+      "Free intake prefill: upstream rejected the request, status",
+      response.status,
+      "website",
+      website,
+      "payload",
+      upstreamPayload,
+    );
     return NextResponse.json({
       ok: false,
       reason:
