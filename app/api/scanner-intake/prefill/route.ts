@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { getE3dSessionUser, isE3dAdmin } from "@/lib/e3d-session";
 import {
   emptyScannerIntakeDraft,
   isScannerIntakeFieldKey,
@@ -37,6 +38,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, reason: "missing_website" }, { status: 400 });
   }
 
+  const internalServiceKey = process.env.E3D_SCANNER_INTERNAL_SERVICE_KEY?.trim() || "";
+  if (!internalServiceKey) {
+    console.error("Scanner intake prefill rejected: E3D_SCANNER_INTERNAL_SERVICE_KEY is not configured.");
+    return NextResponse.json({ ok: false, reason: "service_unavailable" }, { status: 500 });
+  }
+
+  const requestHeaders = await headers();
+  // Re-checked here from the request's own cookie header, independent of
+  // any client-supplied flag or of whatever credit key cookie happens to be
+  // set (including page.tsx's `admin-bypass:...` UI-convenience key, which
+  // the upstream payments service has never heard of and would reject) --
+  // same pattern as submitScannerIntakeForm's admin check for the final
+  // submission. Admins skip the credit-gated endpoint entirely and use the
+  // same crawl/summarize pipeline the free tier calls, gated by IP rate
+  // limits instead of a balance.
+  const session = await getE3dSessionUser(requestHeaders.get("cookie") || "");
+  if (isE3dAdmin(session) && session.authenticated) {
+    const forwardedFor = requestHeaders.get("x-forwarded-for") || "";
+    const clientIp = forwardedFor.split(",")[0]?.trim() || "unknown";
+    const ipHash = createHash("sha256").update(clientIp).digest("hex");
+    console.error("Scanner intake prefill: admin bypass for", session.email);
+    return proxyPrefill(
+      `${getE3dApiBaseUrl()}/payments/scanner/intake-prefill-free`,
+      { website, ipHash },
+      internalServiceKey,
+    );
+  }
+
   const cookieStore = await cookies();
   const creditKey = cookieStore.get(SCANNER_CREDIT_KEY_COOKIE)?.value?.trim() || "";
   if (!creditKey) {
@@ -52,16 +81,17 @@ export async function POST(request: Request) {
     createHash("sha256").update(creditKey).digest("hex"),
   );
 
-  const internalServiceKey = process.env.E3D_SCANNER_INTERNAL_SERVICE_KEY?.trim() || "";
-  if (!internalServiceKey) {
-    console.error("Scanner intake prefill rejected: E3D_SCANNER_INTERNAL_SERVICE_KEY is not configured.");
-    return NextResponse.json({ ok: false, reason: "service_unavailable" }, { status: 500 });
-  }
-
   const endpointUrl =
     process.env.E3D_SCANNER_PREFILL_URL?.trim() ||
     `${getE3dApiBaseUrl()}/payments/scanner/intake-prefill`;
+  return proxyPrefill(endpointUrl, { creditKey, website }, internalServiceKey);
+}
 
+async function proxyPrefill(
+  endpointUrl: string,
+  body: Record<string, string>,
+  internalServiceKey: string,
+) {
   let response: Response;
   try {
     response = await fetch(endpointUrl, {
@@ -71,7 +101,7 @@ export async function POST(request: Request) {
         "content-type": "application/json",
         authorization: `Internal ${internalServiceKey}`,
       },
-      body: JSON.stringify({ creditKey, website }),
+      body: JSON.stringify(body),
     });
   } catch (error) {
     console.error("Scanner intake prefill: upstream fetch threw:", endpointUrl, error);
