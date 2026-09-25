@@ -28,9 +28,13 @@ generation will fail closed rather than silently degrade.
 - `SCANNER_MONGO_URL`, `SCANNER_REPORT_TOKEN_SECRET` — durable report store.
 - `SCANNER_LLM_URL`, `SCANNER_LLM_API_KEY`, `SCANNER_LLM_MODEL` — analysis LLM.
 - `SCANNER_INTAKE_PROVIDER`, `SCANNER_INTAKE_ENDPOINT_URL`, `SCANNER_INTAKE_ENDPOINT_AUTH_TOKEN` — intake-notify webhook.
-- `E3D_SCANNER_INTERNAL_SERVICE_KEY`, `E3D_API_BASE_URL` — shared payments API auth/base URL.
-- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` — bot protection on the intake form.
-- `NEXT_PUBLIC_BOOKING_URL` — consultation booking link (falls back to the parent site's contact page).
+- `SCANNER_LITE_INTAKE_PROVIDER`, `SCANNER_LITE_INTAKE_ENDPOINT_URL`, `SCANNER_LITE_INTAKE_ENDPOINT_AUTH_TOKEN` — HVAC Lite (`/hvac`) delivery, separate from the paid intake's `SCANNER_INTAKE_*` above. Two providers:
+  - `SCANNER_LITE_INTAKE_PROVIDER=webhook` (intended long-term path) — POSTs the completed report's link, the lead's email, and their marketing-consent flag to itera.works' CRM (HighLevel) at `SCANNER_LITE_INTAKE_ENDPOINT_URL`, which is expected to send the actual report email; this app never sends it directly in this mode.
+  - `SCANNER_LITE_INTAKE_PROVIDER=ses` (stopgap for testing before HighLevel is wired up) — sends the report email directly via AWS SES. Needs `SCANNER_LITE_EMAIL_FROM` (a verified SES sender identity) plus the AWS SDK's standard `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_REGION` env vars; while SES is in sandbox mode the recipient (the lead's submitted email) must also be a verified SES identity.
+  Without either configured, `/hvac` submissions fail closed in production (simulated success in dev).
+- `E3D_SCANNER_INTERNAL_SERVICE_KEY`, `E3D_API_BASE_URL` — shared payments API auth/base URL; also used by `/hvac` to auto-analyze the submitted site (no interactive prefill step there).
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` — bot protection on the intake form (and `/hvac`).
+- `NEXT_PUBLIC_BOOKING_URL` — consultation booking link (falls back to the parent site's contact page). Not used by `/hvac` reports, which book through their own Calendly link (see `src/lib/scanner-campaigns.ts`).
 - `NEXT_PUBLIC_SITE_URL` — this site's own canonical origin (`https://oppscan.e3d.ai` in production).
 
 ## Testing

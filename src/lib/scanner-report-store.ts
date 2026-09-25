@@ -28,6 +28,13 @@ export type ScannerCompletedReport = {
   // computeBaseScore/computePotentialScore in scanner-scoring.ts.
   baseScore: number;
   potentialScore: number;
+  // Set only for reports generated through an ad-campaign variant (e.g.
+  // HVAC Lite) -- undefined for every paid FutCo report. The report page
+  // and consultation redirect look up the rest of the campaign's config
+  // (Pixel ID, booking URL) from scanner-campaigns.ts by this source string
+  // rather than persisting it here, so it can be corrected without a data
+  // migration.
+  campaign?: { source: string };
 };
 
 export type ScannerReportCompletionInput = Pick<
@@ -38,6 +45,7 @@ export type ScannerReportCompletionInput = Pick<
   | "potentialScore"
   | "checkoutEmail"
   | "companyName"
+  | "campaign"
 >;
 
 // Admin sees every report, including ones completed before a given field
@@ -129,6 +137,16 @@ export function getScannerReportStore(): ScannerReportStore {
 
 export function deriveScanId(creditKey: string) {
   return `scan_${createHash("sha256").update(creditKey, "utf8").digest("hex").slice(0, 32)}`;
+}
+
+// Lite has no creditKey to derive identity from, so scanId comes from the
+// normalized (email, website) pair instead -- same idempotency rationale as
+// deriveScanId above: a duplicate submission (double-click, page refresh
+// mid-generation) resolves to the same report rather than re-running the
+// LLM pipeline and re-delivering the webhook a second time.
+export function deriveLiteScanId(email: string, website: string) {
+  const identity = `${normalizeReportEmail(email)}|${website.trim().toLowerCase()}`;
+  return `scan_lite_${createHash("sha256").update(identity, "utf8").digest("hex").slice(0, 32)}`;
 }
 
 export function createLeaseOwnerId() {
@@ -346,6 +364,7 @@ export class InMemoryScannerReportStore implements ScannerReportStore {
       report: structuredClone(input.report),
       baseScore: input.baseScore,
       potentialScore: input.potentialScore,
+      ...(input.campaign ? { campaign: input.campaign } : {}),
     };
     delete record.lease;
     return record.completed;

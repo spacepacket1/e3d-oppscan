@@ -32,6 +32,7 @@ type ScannerReportDocument = {
   report?: ScannerReportCopy;
   baseScore?: number;
   potentialScore?: number;
+  campaign?: { source: string };
   revoked?: boolean;
   telemetryEvents?: Record<string, Date>;
 };
@@ -142,6 +143,7 @@ export class MongoScannerReportStore implements ScannerReportStore {
         baseScore: typeof document.baseScore === "number" ? document.baseScore : null,
         potentialScore:
           typeof document.potentialScore === "number" ? document.potentialScore : null,
+        ...(document.campaign ? { campaign: document.campaign } : {}),
         revoked: document.revoked === true,
       });
     }
@@ -266,6 +268,7 @@ export class MongoScannerReportStore implements ScannerReportStore {
           report: structuredClone(input.report),
           baseScore: input.baseScore,
           potentialScore: input.potentialScore,
+          ...(input.campaign ? { campaign: input.campaign } : {}),
         },
         $unset: { lease: "" },
       },
@@ -424,6 +427,7 @@ function completedReportFromDocument(
     report: structuredClone(document.report),
     baseScore: document.baseScore,
     potentialScore: document.potentialScore,
+    ...(document.campaign ? { campaign: document.campaign } : {}),
   };
 }
 

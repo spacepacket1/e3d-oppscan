@@ -17,6 +17,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.1141.0",
     "mongodb": "^6.21.0",
     "next": "^16.2.12",
     "react": "^19.2.8",

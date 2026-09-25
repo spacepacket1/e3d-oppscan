@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
+import { ScannerCampaignPixel } from "@/components/scanner-campaign-pixel";
 import { ScannerReport } from "@/components/scanner-report";
+import { getScannerCampaign } from "@/lib/scanner-campaigns";
 import {
   authorizeScannerReportToken,
   getScannerReportStore,
@@ -46,11 +48,14 @@ export default async function ScannerReportPage({
       timestamp: new Date().toISOString(),
     });
   } catch {}
+  const campaign = getScannerCampaign(record.campaign?.source);
   return (
     <main className="page-main">
+      {campaign ? <ScannerCampaignPixel pixelId={campaign.metaPixelId} /> : null}
       <section className="page-section">
         <div className="container">
           <ScannerReport
+            campaignPixelId={campaign?.metaPixelId}
             consultationHref={`/report/${token}/consultation`}
             record={record}
           />

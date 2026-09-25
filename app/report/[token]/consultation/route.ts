@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { NextResponse } from "next/server";
 
 import { primaryCta, resolvePrimaryCtaHref } from "@/content/site-config";
+import { getScannerCampaign } from "@/lib/scanner-campaigns";
 import {
   authorizeScannerReportToken,
   getScannerReportStore,
@@ -40,14 +41,18 @@ export async function GET(
     return NextResponse.redirect(new URL(`/report/${token}`, request.url), 302);
   }
 
-  const destination = resolvePrimaryCtaHref();
+  // A campaign-tagged report (e.g. HVAC Lite) books through its own
+  // Calendly link, not the site-wide primary CTA -- every other report
+  // (every paid FutCo report) keeps today's behavior exactly.
+  const campaign = getScannerCampaign(record.campaign?.source);
+  const destination = campaign?.bookingUrl || resolvePrimaryCtaHref();
   try {
     await claimAndEmitScannerTelemetry(store, {
       scanId: record.scanId,
       eventName: "scanner_consultation_clicked",
       timestamp: new Date().toISOString(),
       destinationType:
-        destination === primaryCta.fallbackHref ? "contact" : "booking",
+        !campaign && destination === primaryCta.fallbackHref ? "contact" : "booking",
     });
   } catch {}
   return NextResponse.redirect(new URL(destination, request.url), 302);

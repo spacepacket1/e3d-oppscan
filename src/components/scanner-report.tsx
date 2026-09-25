@@ -1,6 +1,5 @@
-import Link from "next/link";
-
 import { scannerContent } from "@/content/scanner-content";
+import { ConsultationCta } from "@/components/consultation-cta";
 import type { ScannerCompletedReport } from "@/lib/scanner-report-store";
 
 function opportunityAnchorId(candidateId: string) {
@@ -41,6 +40,7 @@ export function ScannerReport({
   consultationHref,
   ctaLabel = "Book your included consultation",
   ctaHelperText = "If booking is not configured, this action opens the established contact page so you can arrange the consultation directly.",
+  campaignPixelId,
 }: {
   record: Omit<
     ScannerCompletedReport,
@@ -59,6 +59,9 @@ export function ScannerReport({
   consultationHref: string;
   ctaLabel?: string;
   ctaHelperText?: string;
+  // Set only for a campaign-tagged report (e.g. HVAC Lite) -- fires a Meta
+  // Pixel event when the CTA is clicked. Undefined for every paid report.
+  campaignPixelId?: string;
 }) {
   const copyByCandidate = new Map(
     record.report.opportunities.map((item) => [item.candidateId, item]),
@@ -233,9 +236,7 @@ export function ScannerReport({
           </>
         ) : null}
         <p>{record.report.closingNote}</p>
-        <Link className="button button--primary" href={consultationHref}>
-          {ctaLabel}
-        </Link>
+        <ConsultationCta href={consultationHref} label={ctaLabel} pixelId={campaignPixelId} />
         <p>{ctaHelperText}</p>
       </section>
     </div>
