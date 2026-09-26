@@ -15,6 +15,9 @@ const analysisMocks = vi.hoisted(() => ({
 const deliveryMocks = vi.hoisted(() => ({
   deliverScannerLiteSubmission: vi.fn(),
 }));
+const siteSignalsMocks = vi.hoisted(() => ({
+  detectHvacSiteSignals: vi.fn(),
+}));
 
 vi.mock("next/headers", () => ({ headers: headersMock }));
 
@@ -46,8 +49,16 @@ vi.mock("@/lib/scanner-lite-delivery", async () => {
   return { ...actual, ...deliveryMocks };
 });
 
+vi.mock("@/lib/scanner-lite-site-signals", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/scanner-lite-site-signals")
+  >("@/lib/scanner-lite-site-signals");
+  return { ...actual, ...siteSignalsMocks };
+});
+
 import { orchestrateHvacLiteIntake, submitHvacLiteIntake } from "../app/hvac/actions";
 import { HvacLiteProfileError } from "@/lib/scanner-lite-analysis";
+import { emptyHvacSiteSignals } from "@/lib/scanner-lite-site-signals";
 import {
   emptyHvacLiteIntakeValues,
   type HvacLiteIntakeValues,
@@ -137,6 +148,7 @@ describe("submitHvacLiteIntake", () => {
     rateLimitMocks.isHvacLiteRateLimited.mockReturnValue(false);
     securityMocks.verifyTurnstileToken.mockResolvedValue(true);
     analysisMocks.fetchHvacLiteCompanyProfile.mockResolvedValue(profile);
+    siteSignalsMocks.detectHvacSiteSignals.mockResolvedValue(emptyHvacSiteSignals);
     analysisMocks.generateLiteScannerAnalysis.mockResolvedValue(buildAnalysisResult());
     deliveryMocks.deliverScannerLiteSubmission.mockResolvedValue({ ok: true });
   });
@@ -226,6 +238,7 @@ describe("orchestrateHvacLiteIntake", () => {
       "test-scanner-report-token-secret-32-bytes",
     );
     analysisMocks.fetchHvacLiteCompanyProfile.mockResolvedValue(profile);
+    siteSignalsMocks.detectHvacSiteSignals.mockResolvedValue(emptyHvacSiteSignals);
     analysisMocks.generateLiteScannerAnalysis.mockResolvedValue(buildAnalysisResult());
     deliveryMocks.deliverScannerLiteSubmission.mockResolvedValue({ ok: true });
   });

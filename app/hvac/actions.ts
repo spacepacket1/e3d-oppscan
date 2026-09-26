@@ -10,6 +10,7 @@ import {
   generateLiteScannerAnalysis,
 } from "@/lib/scanner-lite-analysis";
 import { deliverScannerLiteSubmission } from "@/lib/scanner-lite-delivery";
+import { detectHvacSiteSignals } from "@/lib/scanner-lite-site-signals";
 import {
   hvacLiteErrorState,
   hvacLiteIntakeValuesFromFormData,
@@ -208,9 +209,14 @@ async function generateAndComplete(
   let analysisStarted = false;
   try {
     const ipHash = createHash("sha256").update(clientIp).digest("hex");
-    const profile = await fetchHvacLiteCompanyProfile(values.companyWebsite, {
-      ipHash,
-    });
+    // Independent of each other and both hit the same website, so run them
+    // concurrently. Signal detection never throws (see
+    // scanner-lite-site-signals.ts) -- a fetch failure there just yields
+    // all-false signals, it never blocks or fails the submission.
+    const [profile, signals] = await Promise.all([
+      fetchHvacLiteCompanyProfile(values.companyWebsite, { ipHash }),
+      detectHvacSiteSignals(values.companyWebsite),
+    ]);
 
     await claimAndEmitScannerTelemetry(
       store,
@@ -223,7 +229,7 @@ async function generateAndComplete(
     );
     analysisStarted = true;
 
-    const analysis = await generateLiteScannerAnalysis(scanId, profile);
+    const analysis = await generateLiteScannerAnalysis(scanId, profile, { signals });
     const token = deriveReportAccessToken(scanId);
     const completed = await store.completeReport(
       scanId,

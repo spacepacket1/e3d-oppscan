@@ -23,6 +23,7 @@ import {
   rankScannerCandidates,
   type RankedScannerCandidate,
 } from "@/lib/scanner-scoring";
+import { emptyHvacSiteSignals, type HvacSiteSignals } from "@/lib/scanner-lite-site-signals";
 
 // HVAC Lite writes up exactly this many opportunities -- matches Chapple's
 // "at least four practical opportunities" spec and keeps the emailed report
@@ -151,7 +152,9 @@ const HVAC_CANDIDATE_FOCUS_INSTRUCTIONS =
   "reactivating old customer or service-history lists into repeat maintenance or replacement leads; " +
   "and after-hours or emergency no-heat/no-cool request triage and routing. " +
   "Only include a category here if it is plausible for this specific business based on its website -- do not force every category into the list, and never fabricate a service, financing option, or program the business does not appear to offer. " +
-  "A general office/administrative opportunity is acceptable when nothing more HVAC-specific plausibly applies, but should not crowd out the categories above when there is a plausible fit.";
+  "A general office/administrative opportunity is acceptable when nothing more HVAC-specific plausibly applies, but should not crowd out the categories above when there is a plausible fit. " +
+  "A <DETECTED_SITE_SIGNALS> block follows the intake JSON with best-effort true/false keyword detections from the business's homepage: installationOrReplacement, financingOffered, quoteOrEstimateCta, maintenancePlanOrMembership, emergencyOrSameDayService, brandNameMentioned, customerReviewsMentioned. Treat a true value as concrete evidence you may cite directly. Treat a false value only as inconclusive, never as proof the business lacks that offering -- detection can miss wording the site uses differently or a page that wasn't fetched. " +
+  "One exception: quote and proposal generation for equipment replacement/installation is a near-universal offering for a full-service HVAC business, so include it as a plausible opportunity even when installationOrReplacement and quoteOrEstimateCta are both false, unless the website clearly signals a repair-only or maintenance-only business. Do not extend that same benefit of the doubt to the other categories (financing, membership/maintenance plans, etc.) -- those must still be grounded in the profile description or a true detected signal, since they vary meaningfully by business.";
 
 const LITE_REPORT_SCHEMA_INSTRUCTIONS =
   'Return one object containing exactly: "executiveSummary", "recommendedStartingPoint", "opportunities", "consultationPreparation", and "closingNote". ' +
@@ -170,6 +173,15 @@ const LITE_REPORT_SCHEMA_INSTRUCTIONS =
 function buildLiteUntrustedIntakeEnvelope(profile: HvacLiteCompanyProfile) {
   const serialized = escapeIntakeJsonForEnvelope(JSON.stringify(profile));
   return `<UNTRUSTED_INTAKE_JSON>\n${serialized}\n</UNTRUSTED_INTAKE_JSON>`;
+}
+
+// Unlike the envelope above, this is safe to serialize without the
+// delimiter-escaping treatment: every value here is a boolean this code
+// computed itself (see scanner-lite-site-signals.ts), not attacker-supplied
+// freeform text, so there is no string content that could ever contain a
+// closing tag to break out with.
+function buildSiteSignalsBlock(signals: HvacSiteSignals) {
+  return `<DETECTED_SITE_SIGNALS>\n${JSON.stringify(signals)}\n</DETECTED_SITE_SIGNALS>`;
 }
 
 function validateLiteReportResponse(
@@ -228,11 +240,16 @@ function validateLiteReportResponse(
 export async function generateLiteScannerAnalysis(
   scanId: string,
   profile: HvacLiteCompanyProfile,
-  options: { transport?: ScannerLlmTransport; timeoutMs?: number } = {},
+  options: {
+    transport?: ScannerLlmTransport;
+    timeoutMs?: number;
+    signals?: HvacSiteSignals;
+  } = {},
 ): Promise<ScannerAnalysisResult> {
   const transport = options.transport ?? createScannerLlmTransport();
   const timeoutMs = options.timeoutMs ?? getLlmTimeoutMs();
   const envelope = buildLiteUntrustedIntakeEnvelope(profile);
+  const signalsBlock = buildSiteSignalsBlock(options.signals ?? emptyHvacSiteSignals);
 
   const candidatesText = await callWithTimeout(
     transport,
@@ -245,7 +262,7 @@ export async function generateLiteScannerAnalysis(
         },
         {
           role: "user",
-          content: `${envelope}\nGenerate the candidate JSON now.`,
+          content: `${envelope}\n${signalsBlock}\nGenerate the candidate JSON now.`,
         },
       ],
     },

@@ -7,6 +7,7 @@ import {
   generateLiteScannerAnalysis,
 } from "@/lib/scanner-lite-analysis";
 import { rankScannerCandidates } from "@/lib/scanner-scoring";
+import { emptyHvacSiteSignals } from "@/lib/scanner-lite-site-signals";
 
 const validMaturity = {
   toolAdoption: 3,
@@ -155,6 +156,39 @@ describe("generateLiteScannerAnalysis", () => {
     expect(candidateSystemPrompt).toContain("quote and proposal generation");
     expect(candidateSystemPrompt).toContain("maintenance-agreement or membership-plan renewal");
     expect(candidateSystemPrompt).toContain("HVAC-targeted ad campaign");
+    expect(candidateSystemPrompt).toContain("DETECTED_SITE_SIGNALS");
+    expect(candidateSystemPrompt).toContain("near-universal offering for a full-service HVAC business");
+
+    // No signals were passed, so the candidate call's user message carries
+    // an all-false block rather than omitting it.
+    const candidateUserMessage = requests[0].messages[1].content;
+    expect(candidateUserMessage).toContain("<DETECTED_SITE_SIGNALS>");
+    expect(candidateUserMessage).toContain('"financingOffered":false');
+  });
+
+  it("passes detected site signals through to the candidate call", async () => {
+    const ranked = rankScannerCandidates(candidates).slice(0, LITE_OPPORTUNITY_COUNT);
+    const requests: Array<{ messages: Array<{ content: string }> }> = [];
+
+    await generateLiteScannerAnalysis("scan_lite_signals", profile, {
+      transport: async (request) => {
+        requests.push(request);
+        return requests.length === 1
+          ? JSON.stringify({ candidates, maturity: validMaturity })
+          : JSON.stringify(liteReportFor(ranked.map((candidate) => candidate.id)));
+      },
+      timeoutMs: 100,
+      signals: {
+        ...emptyHvacSiteSignals,
+        financingOffered: true,
+        quoteOrEstimateCta: true,
+      },
+    });
+
+    const candidateUserMessage = requests[0].messages[1].content;
+    expect(candidateUserMessage).toContain('"financingOffered":true');
+    expect(candidateUserMessage).toContain('"quoteOrEstimateCta":true');
+    expect(candidateUserMessage).toContain('"maintenancePlanOrMembership":false');
   });
 
   it("rejects a report with the wrong opportunity count", async () => {
