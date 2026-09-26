@@ -130,6 +130,29 @@ function readDraftField(
   return typeof value === "string" ? value.trim() : "";
 }
 
+// Biases candidate generation toward opportunity categories that are
+// specific to how HVAC businesses actually operate and make money, rather
+// than the generic-service-business patterns (intake, message drafting,
+// routing) the shared CANDIDATE_SCHEMA_INSTRUCTIONS alone tends to produce.
+// The categories deliberately line up with what itera.works actually sells
+// on the follow-up call (per Chapple's spec: comms/follow-up automation,
+// reactivating old customer lists, review/reputation management, turning
+// the website into a lead generator) so the free report sets up that pitch
+// instead of wandering into unrelated ops territory. Only affects the HVAC
+// Lite candidate call -- the paid and free tiers are untouched.
+const HVAC_CANDIDATE_FOCUS_INSTRUCTIONS =
+  "This scan is for a residential/commercial HVAC service business reached through an HVAC-targeted ad campaign. " +
+  "Prioritize opportunities genuinely specific to how HVAC businesses operate and make money, grounded in the business's actual website content, drawing from categories such as: " +
+  "maintenance-agreement or membership-plan renewal reminders and upsell automation; " +
+  "seasonal proactive outreach timed to HVAC's demand cycle (spring cooling tune-ups, fall heating tune-ups); " +
+  "AI-assisted quote and proposal generation for equipment replacement and installation jobs -- faster turnaround, multiple financing/efficiency tiers, more professional output -- to win more of that higher-ticket business; " +
+  "presenting financing options at the point of quote for higher-ticket equipment replacement; " +
+  "automated review and reputation management after completed jobs, since online reviews are a primary lead-generation channel for local HVAC businesses; " +
+  "reactivating old customer or service-history lists into repeat maintenance or replacement leads; " +
+  "and after-hours or emergency no-heat/no-cool request triage and routing. " +
+  "Only include a category here if it is plausible for this specific business based on its website -- do not force every category into the list, and never fabricate a service, financing option, or program the business does not appear to offer. " +
+  "A general office/administrative opportunity is acceptable when nothing more HVAC-specific plausibly applies, but should not crowd out the categories above when there is a plausible fit.";
+
 const LITE_REPORT_SCHEMA_INSTRUCTIONS =
   'Return one object containing exactly: "executiveSummary", "recommendedStartingPoint", "opportunities", "consultationPreparation", and "closingNote". ' +
   'Each opportunity must contain exactly: "candidateId", "headline", "whyItMatters", "practicalApproach", and "considerations". ' +
@@ -218,7 +241,7 @@ export async function generateLiteScannerAnalysis(
       messages: [
         {
           role: "system",
-          content: `${PROMPT_SAFETY} ${CANDIDATE_SCHEMA_INSTRUCTIONS}`,
+          content: `${PROMPT_SAFETY} ${CANDIDATE_SCHEMA_INSTRUCTIONS} ${HVAC_CANDIDATE_FOCUS_INSTRUCTIONS}`,
         },
         {
           role: "user",

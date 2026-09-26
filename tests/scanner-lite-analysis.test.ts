@@ -151,6 +151,10 @@ describe("generateLiteScannerAnalysis", () => {
       "lite-candidates",
       "lite-report",
     ]);
+    const candidateSystemPrompt = requests[0].messages[0].content;
+    expect(candidateSystemPrompt).toContain("quote and proposal generation");
+    expect(candidateSystemPrompt).toContain("maintenance-agreement or membership-plan renewal");
+    expect(candidateSystemPrompt).toContain("HVAC-targeted ad campaign");
   });
 
   it("rejects a report with the wrong opportunity count", async () => {
