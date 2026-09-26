@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const notFound = vi.hoisted(() => vi.fn(() => { throw new Error("NOT_FOUND"); }));
 vi.mock("next/navigation", () => ({ notFound, redirect: vi.fn() }));
@@ -17,7 +18,7 @@ vi.mock("next/headers", () => ({
   }),
 }));
 
-import ScannerReportPage from "../app/report/[token]/page";
+import ScannerReportPage, { generateMetadata } from "../app/report/[token]/page";
 import { GET as consultation } from "../app/report/[token]/consultation/route";
 import {
   InMemoryScannerReportStore,
@@ -111,5 +112,76 @@ describe("scanner report authorization and telemetry", () => {
       await expect(consultation(validRequest, { params: Promise.resolve({ token: invalid }) })).rejects.toThrow("NOT_FOUND");
     }
     expect(telemetry).not.toHaveBeenCalled();
+  });
+});
+
+describe("HVAC Lite campaign branding", () => {
+  const HVAC_EMAIL = "owner@redwoodhvac.example.com";
+  let hvacToken: string;
+
+  beforeEach(async () => {
+    cookieJar.clear();
+    vi.stubEnv("SCANNER_REPORT_TOKEN_SECRET", "test-scanner-report-token-secret-32-bytes");
+    const store = new InMemoryScannerReportStore();
+    const scanId = "scan_lite_branding_test";
+    hvacToken = deriveReportAccessToken(scanId);
+    await store.acquireGenerationLease(scanId, "owner", 1, 100);
+    await store.completeReport(scanId, "owner", {
+      candidates: [{
+        id: "safe-candidate", title: "Safe", summary: "Summary", outcomeType: "augmentation",
+        impact: 4, feasibility: 4, timeToValue: 4, confidence: 4, risk: 1,
+        evidence: ["Evidence"], firstStep: "Start", score: 350, rank: 1, pointValue: 10,
+      }],
+      report: {
+        executiveSummary: "Summary", recommendedStartingPoint: "Start",
+        opportunities: [{ candidateId: "safe-candidate", headline: "Safe", whyItMatters: "Why",
+          practicalApproach: ["How"], considerations: ["Care"] }],
+        consultationPreparation: ["Owner?", "Baseline?"], closingNote: "Close",
+      },
+      baseScore: 50,
+      potentialScore: 60,
+      checkoutEmail: HVAC_EMAIL,
+      companyName: "Redwood HVAC",
+      campaign: { source: "hvac_lite" },
+    }, hashReportAccessToken(hvacToken), "2026-09-26T00:00:00.000Z");
+    cookieJar.set(
+      reportEmailCookieName(),
+      deriveReportEmailProof(scanId, HVAC_EMAIL),
+    );
+    setScannerReportStoreForTests(store);
+    setScannerTelemetrySinkForTests(vi.fn());
+  });
+
+  afterEach(() => {
+    setScannerReportStoreForTests(undefined);
+    setScannerTelemetrySinkForTests(undefined);
+    vi.unstubAllEnvs();
+    cookieJar.clear();
+  });
+
+  it("titles the page for itera.works instead of Oppscan", async () => {
+    const metadata = await generateMetadata({ params: Promise.resolve({ token: hvacToken }) });
+    expect(metadata.title).toBe("HVAC Business AI Opportunity Scanner Report | itera.works");
+  });
+
+  it("hides the default FutCo/Oppscan chrome and renders itera.works branding instead", async () => {
+    const page = await ScannerReportPage({ params: Promise.resolve({ token: hvacToken }) });
+    const markup = renderToStaticMarkup(page);
+    expect(markup).toContain("HVAC Business AI Opportunity Scanner");
+    expect(markup).toContain("itera.works");
+    expect(markup).toContain("support@itera.works");
+    expect(markup).toContain(".oppscan-header:not(.itera-brand-chrome)");
+    expect(markup).not.toContain("consultation included with your scanner purchase");
+    expect(markup).not.toContain("Book your included consultation");
+  });
+
+  it("books through the campaign's Calendly link instead of the site-wide booking URL", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BOOKING_URL", "https://booking.example.com/consult");
+    const request = new Request(`https://oppscan.e3d.ai/report/${hvacToken}/consultation`);
+    const response = await consultation(request, { params: Promise.resolve({ token: hvacToken }) });
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "https://calendly.com/itera-support/oppscan-ai-strategy-call",
+    );
   });
 });

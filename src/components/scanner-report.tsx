@@ -41,6 +41,13 @@ export function ScannerReport({
   ctaLabel = "Book your included consultation",
   ctaHelperText = "If booking is not configured, this action opens the established contact page so you can arrange the consultation directly.",
   campaignPixelId,
+  headerCopy = {
+    eyebrow: "AI OPPORTUNITY SCANNER",
+    heading: "Your practical AI opportunity report",
+    description:
+      "This report turns your submitted business context into a ranked starting point. It is preparation for the consultation included with your scanner purchase.",
+  },
+  implementationCopy = scannerContent.reportImplementation,
 }: {
   record: Omit<
     ScannerCompletedReport,
@@ -62,6 +69,12 @@ export function ScannerReport({
   // Set only for a campaign-tagged report (e.g. HVAC Lite) -- fires a Meta
   // Pixel event when the CTA is clicked. Undefined for every paid report.
   campaignPixelId?: string;
+  // Both default to the paid FutCo copy so every existing (undated)
+  // consumer of this component is unaffected -- a campaign-tagged report
+  // (e.g. HVAC Lite) passes its own, since "the consultation included with
+  // your scanner purchase" is simply false for a free report.
+  headerCopy?: { eyebrow: string; heading: string; description: string };
+  implementationCopy?: { heading: string; body: readonly string[] };
 }) {
   const copyByCandidate = new Map(
     record.report.opportunities.map((item) => [item.candidateId, item]),
@@ -69,13 +82,9 @@ export function ScannerReport({
   return (
     <div className="page-stack scanner-report">
       <header className="content-panel">
-        <p className="section-heading__eyebrow">AI OPPORTUNITY SCANNER</p>
-        <h1>Your practical AI opportunity report</h1>
-        <p>
-          This report turns your submitted business context into a ranked
-          starting point. It is preparation for the consultation included with
-          your scanner purchase.
-        </p>
+        <p className="section-heading__eyebrow">{headerCopy.eyebrow}</p>
+        <h1>{headerCopy.heading}</h1>
+        <p>{headerCopy.description}</p>
       </header>
       {record.baseScore !== null && record.potentialScore !== null ? (
         <section className="content-panel scanner-score-summary">
@@ -216,8 +225,8 @@ export function ScannerReport({
         </section>
       ) : null}
       <section className="content-panel">
-        <h2>{scannerContent.reportImplementation.heading}</h2>
-        {scannerContent.reportImplementation.body.map((paragraph) => (
+        <h2>{implementationCopy.heading}</h2>
+        {implementationCopy.body.map((paragraph) => (
           <p key={paragraph}>{paragraph}</p>
         ))}
       </section>
