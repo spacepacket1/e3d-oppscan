@@ -15,7 +15,31 @@ import {
   type ScannerMaturity,
 } from "@/lib/scanner-scoring";
 
+// HVAC Lite's business-oriented financial/impact labels, replacing the
+// numeric 1-5 ratings on screen (those keep driving ranking behind the
+// scenes -- see scanner-scoring.ts -- but Chapple's spec is explicit that
+// unexplained numbers like "400" don't help an executive reader).
+export type HvacOpportunityFinancialLever =
+  | "revenue"
+  | "cost-savings"
+  | "capacity"
+  | "customer-experience";
+export type HvacOpportunityImpact = "high" | "medium" | "moderate";
+export type HvacOpportunityConfidence =
+  | "strong-evidence"
+  | "moderate-evidence"
+  | "limited-evidence";
+export type HvacOpportunityEase = "straightforward" | "moderate" | "involved";
+
 export type ScannerReportCopy = {
+  // Company-specific and forwardable (e.g. "Three Ways Acme HVAC May
+  // Capture More Booked Work Without Increasing Ad Spend") -- HVAC Lite
+  // only, undefined for every paid/free report.
+  reportTitle?: string;
+  preparedForNote?: string;
+  // Short bullets of publicly observable facts, shown ahead of the
+  // executive summary -- HVAC Lite only.
+  whatWeObserved?: string[];
   executiveSummary: string;
   recommendedStartingPoint: string;
   opportunities: Array<{
@@ -24,6 +48,18 @@ export type ScannerReportCopy = {
     whyItMatters: string;
     practicalApproach: string[];
     considerations: string[];
+    // HVAC Lite's business-framing fields below -- all undefined for
+    // every paid/free opportunity.
+    financialLever?: HvacOpportunityFinancialLever;
+    potentialImpact?: HvacOpportunityImpact;
+    confidence?: HvacOpportunityConfidence;
+    easeOfImplementation?: HvacOpportunityEase;
+    timeToValue?: string;
+    recommendedPilot?: string;
+    valueCalculation?: {
+      formula: string;
+      dataNeeded: string[];
+    };
   }>;
   // Reports completed before competitive analysis existed have neither
   // field -- optional so those already-delivered reports keep rendering

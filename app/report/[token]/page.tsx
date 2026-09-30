@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
+import { HvacLiteReport } from "@/components/hvac-lite-report";
 import {
   HideDefaultSiteChrome,
   IteraBrandFooter,
@@ -32,9 +33,10 @@ export async function generateMetadata({
   const { token } = await params;
   const authorized = await loadAuthorizedReport(token);
   const campaign = getScannerCampaign(authorized?.record.campaign?.source);
+  const reportTitle = authorized?.record.report.reportTitle;
   return {
     title: campaign
-      ? `${hvacLiteContent.brand.productName} Report | ${hvacLiteContent.brand.company}`
+      ? `${reportTitle ?? hvacLiteContent.brand.productName} | ${hvacLiteContent.brand.company}`
       : "AI Opportunity Scanner Report | Oppscan",
     robots: { index: false, follow: false },
   };
@@ -83,26 +85,18 @@ export default async function ScannerReportPage({
         {campaign ? <ScannerCampaignPixel pixelId={campaign.metaPixelId} /> : null}
         <section className="page-section">
           <div className="container">
-            <ScannerReport
-              campaignPixelId={campaign?.metaPixelId}
-              consultationHref={`/report/${token}/consultation`}
-              record={record}
-              {...(isHvacLite
-                ? {
-                    ctaLabel: hvacLiteContent.report.ctaLabel,
-                    ctaHelperText: hvacLiteContent.report.ctaHelperText,
-                    headerCopy: {
-                      eyebrow: hvacLiteContent.report.eyebrow,
-                      heading: hvacLiteContent.report.heading,
-                      description: hvacLiteContent.report.description,
-                    },
-                    implementationCopy: {
-                      heading: hvacLiteContent.report.implementationHeading,
-                      body: hvacLiteContent.report.implementationBody,
-                    },
-                  }
-                : {})}
-            />
+            {isHvacLite ? (
+              <HvacLiteReport
+                campaignPixelId={campaign?.metaPixelId}
+                consultationHref={`/report/${token}/consultation`}
+                record={record}
+              />
+            ) : (
+              <ScannerReport
+                consultationHref={`/report/${token}/consultation`}
+                record={record}
+              />
+            )}
           </div>
         </section>
       </main>

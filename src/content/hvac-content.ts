@@ -9,30 +9,47 @@ export const hvacLiteContent = {
   meta: {
     title: "HVAC Business AI Opportunity Scanner | itera.works",
     description:
-      "See how AI can automate tasks to save your HVAC business time and money. Get a free report customized to your business in minutes.",
+      "See where faster response and follow-up could mean more booked work for your HVAC business. Get a free custom report in minutes.",
   },
+  // Per Chapple's spec (2026-09-26 + 2026-09-29 emails, discussed 2026-09-30):
+  // automation/AI is how itera.works gets the result, never the thing being
+  // sold. This copy -- both the landing page and the report -- leads with
+  // booked work, response speed, and customer experience, and mentions
+  // automation only as the mechanism.
+  valueProposition:
+    "itera.works helps local service companies capture more of the demand they already generate by improving response, estimate follow-up, customer communication, and administrative workflows using the systems they already have.",
   report: {
-    eyebrow: "HVAC BUSINESS AI OPPORTUNITY SCANNER",
-    heading: "Your HVAC AI opportunity report",
-    description:
-      "This free report turns your public website into a ranked starting point for using AI in your HVAC business. It's preparation for your complimentary AI Opportunity & Strategy Review with itera.works.",
-    ctaLabel: "Book your free 30-minute AI Opportunity & Strategy Review",
+    // Static replacement for the old on-screen AI Base/Potential Score
+    // panel -- Chapple was explicit that unexplained numbers like "400"
+    // don't help an executive reader. The real ranking still happens
+    // behind the scenes (see rankScannerCandidates).
+    opportunitiesIntroHeading: "Potential opportunities identified",
+    opportunitiesIntroItems: [
+      "Capture more of the demand you already generate",
+      "Improve response and booking speed",
+      "Recover more unsold replacement estimates",
+      "Reduce administrative work",
+      "Create a more consistent customer experience",
+    ],
+    ctaLabel: "Validate the Opportunity in 20 Minutes",
+    ctaSupportingText:
+      "Bring your approximate monthly inquiry volume, missed-call count, unsold estimate count, and average job value. We'll determine whether one of these opportunities is financially meaningful enough to justify a focused pilot.",
     ctaHelperText:
-      "This opens Calendly to schedule your complimentary call with itera.works.",
+      "This opens Calendly to schedule your complimentary 20-minute call with itera.works.",
     implementationHeading: "How itera.works can help you implement this",
     implementationBody: [
-      "The complimentary 30-minute AI Opportunity & Strategy Review is where this list becomes a plan: which opportunity to start with, what a first pilot looks like, and what itera.works can set up directly versus what your team should own.",
+      "The 20-minute validation call is where this becomes a plan: which opportunity is worth piloting first, what a 30-day pilot looks like, and what itera.works sets up directly versus what your team owns.",
       "From there, itera.works can support implementation in whatever way fits your business, whether that's a single automation, a broader package, or ongoing support as you work through the roadmap.",
     ],
   },
   hero: {
     eyebrow: "FREE FOR HVAC OPERATORS",
-    heading: "Discover 4+ practical AI opportunities for your HVAC business.",
+    heading: "Capture More Booked Work From the Calls You're Already Getting",
     description:
-      "HVAC operators: see how AI can automate tasks to save you time and money. Enter your business website and work email below — we'll review your public site and email you a free report customized to your business, plus an invitation to a complimentary strategy call.",
+      "See where faster response, better estimate follow-up, and more consistent customer communication could mean more booked jobs for your business. Enter your website and work email below — we'll review your public site and send you a free custom report, plus an invite to a quick call to validate the opportunity.",
   },
   form: {
-    heading: "Get your free AI opportunity report",
+    heading: "Get your free opportunity report",
     websiteLabel: "Business website",
     emailLabel: "Work email",
     submitLabel: "Get my free report",
@@ -43,6 +60,6 @@ export const hvacLiteContent = {
   },
   success: {
     heading: "Thanks — we're on it.",
-    body: "We're reviewing your website now. Your free AI opportunity report will be emailed to you shortly, along with an invitation to book a complimentary 30-minute AI Opportunity & Strategy Review.",
+    body: "We're reviewing your website now. Your free report will be emailed to you shortly, along with an invite to a quick 20-minute call to validate the opportunity.",
   },
 } as const;

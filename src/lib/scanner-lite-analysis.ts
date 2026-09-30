@@ -13,6 +13,10 @@ import {
   getModel,
   parseModelJson,
   validateCandidateResponse,
+  type HvacOpportunityConfidence,
+  type HvacOpportunityEase,
+  type HvacOpportunityFinancialLever,
+  type HvacOpportunityImpact,
   type ScannerAnalysisResult,
   type ScannerLlmTransport,
   type ScannerReportCopy,
@@ -154,21 +158,44 @@ const HVAC_CANDIDATE_FOCUS_INSTRUCTIONS =
   "Only include a category here if it is plausible for this specific business based on its website -- do not force every category into the list, and never fabricate a service, financing option, or program the business does not appear to offer. " +
   "A general office/administrative opportunity is acceptable when nothing more HVAC-specific plausibly applies, but should not crowd out the categories above when there is a plausible fit. " +
   "A <DETECTED_SITE_SIGNALS> block follows the intake JSON with best-effort true/false keyword detections from the business's homepage: installationOrReplacement, financingOffered, quoteOrEstimateCta, maintenancePlanOrMembership, emergencyOrSameDayService, brandNameMentioned, customerReviewsMentioned. Treat a true value as concrete evidence you may cite directly. Treat a false value only as inconclusive, never as proof the business lacks that offering -- detection can miss wording the site uses differently or a page that wasn't fetched. " +
-  "One exception: quote and proposal generation for equipment replacement/installation is a near-universal offering for a full-service HVAC business, so include it as a plausible opportunity even when installationOrReplacement and quoteOrEstimateCta are both false, unless the website clearly signals a repair-only or maintenance-only business. Do not extend that same benefit of the doubt to the other categories (financing, membership/maintenance plans, etc.) -- those must still be grounded in the profile description or a true detected signal, since they vary meaningfully by business.";
+  "One exception: quote and proposal generation for equipment replacement/installation is a near-universal offering for a full-service HVAC business, so include it as a plausible opportunity even when installationOrReplacement and quoteOrEstimateCta are both false, unless the website clearly signals a repair-only or maintenance-only business. Do not extend that same benefit of the doubt to the other categories (financing, membership/maintenance plans, etc.) -- those must still be grounded in the profile description or a true detected signal, since they vary meaningfully by business. " +
+  "When several categories are plausible, favor this business priority order when rating impact and feasibility, since it reads best to an executive: (1) capturing and routing more incoming service requests faster, (2) following up on replacement/installation estimates and financing, (3) reducing proposal and administrative preparation time, (4) post-job customer communication and review generation. Review/reputation management is a real, worthwhile opportunity, but a weaker opening argument than the first three -- rate it accordingly rather than as the top opportunity when stronger categories are also plausible. " +
+  "When a review-related opportunity is plausible, never suggest selectively soliciting reviews only from satisfied customers or discouraging/filtering negative ones -- describe sending the same neutral review invitation to every eligible customer, with negative feedback separately routed to staff for private service recovery rather than withheld from the public review flow.";
 
+// Rewritten per Chapple's spec (2026-09-26 "Oppscan Lead Magnet" +
+// 2026-09-29 "Full Spec chat" emails, discussed 2026-09-30): this report is
+// meant to be a forwardable business case a dispatcher or ops lead can send
+// to an owner/GM/budget holder, not an AI-capability writeup. Automation is
+// the "how", never the headline "what" -- every field below is written to
+// keep AI language out of the parts a reader actually sees, and the
+// numeric 1-5 candidate ratings stay off screen entirely (they still drive
+// ranking -- see rankScannerCandidates -- but Chapple was explicit that
+// "why is this a 400?" doesn't help the sale).
 const LITE_REPORT_SCHEMA_INSTRUCTIONS =
-  'Return one object containing exactly: "executiveSummary", "recommendedStartingPoint", "opportunities", "consultationPreparation", and "closingNote". ' +
-  'Each opportunity must contain exactly: "candidateId", "headline", "whyItMatters", "practicalApproach", and "considerations". ' +
+  'Return one object containing exactly: "reportTitle", "preparedForNote", "whatWeObserved", "executiveSummary", "recommendedStartingPoint", "opportunities", "consultationPreparation", and "closingNote". ' +
+  'Each opportunity must contain exactly: "candidateId", "headline", "whyItMatters", "financialLever", "potentialImpact", "confidence", "easeOfImplementation", "timeToValue", "recommendedPilot", "valueCalculation", "practicalApproach", and "considerations". ' +
+  '"valueCalculation" must contain exactly "formula" and "dataNeeded". ' +
   "Return exactly one opportunity for each ranked candidate, in the supplied order, without changing IDs, scores, or ranks. " +
-  "This is a free, short teaser report generated automatically from the business's public website alone (no interview), meant to earn a follow-up call -- not the paid, in-depth advisory report. Keep it concise and skimmable: " +
-  "executiveSummary should be 1-2 short paragraphs on the business's overall AI opportunity, grounded only in what the website itself shows or reasonably implies. " +
-  "whyItMatters should be 2-4 sentences of concrete reasoning grounded in the business's actual services or website content, not generic advice. " +
+  "This report is a forwardable business case a dispatcher, marketing manager, or operations lead can send to an owner, GM, or budget holder -- not an AI-capability writeup. Automation and AI are how IteraWorks gets the result, never the thing being sold: frame every section around booked revenue, response speed, administrative capacity, and customer experience, and mention automation or AI only when explaining how a step works, never as the headline value. " +
+  '"reportTitle" is a specific, forwardable headline naming the business and a business outcome, in the style of "Three Ways [Company Name] May Capture More Booked Work Without Increasing Ad Spend" -- never mention "AI", "scanner", or a numeric score in the title. ' +
+  '"preparedForNote" is one short sentence stating this was prepared for the owner, general manager, operations leader, or marketing team based on publicly available business information. ' +
+  '"whatWeObserved" must contain 3-5 short bullet facts drawn only from the business profile -- specific, publicly-grounded observations (services offered, locations, positioning, financing, contact channels), never a fabricated fact. ' +
+  '"executiveSummary" must be readable in about 30 seconds and cover, within 1-2 short paragraphs: what was observed about the business, where it may be losing revenue, time, or customer goodwill, which opportunity below appears most valuable, and what the business should do next. Ground every claim in the business profile; never state a specific dollar figure as fact. ' +
+  "headline must be a short, business-outcome title only (under 100 characters) -- never restate rank, scores, or the word AI in the headline. " +
+  "whyItMatters should be 2-4 sentences of concrete reasoning grounded in the business's actual services or website content, framed around the business outcome (faster response, more booked work, less admin time), not a generic automation-capability description. " +
+  '"financialLever" is exactly one of "revenue", "cost-savings", "capacity", or "customer-experience" -- the primary way this opportunity creates value. ' +
+  '"potentialImpact" is exactly one of "high", "medium", or "moderate", judged from how directly this lever connects to booked revenue or hard cost, given this business\'s apparent scale. ' +
+  '"confidence" is exactly one of "strong-evidence", "moderate-evidence", or "limited-evidence", reflecting how directly the business profile supports this opportunity -- never inflate confidence beyond what the profile actually shows. ' +
+  '"easeOfImplementation" is exactly one of "straightforward", "moderate", or "involved". ' +
+  '"timeToValue" is a short phrase (under 40 characters) estimating how soon a pilot could show a measurable result, e.g. "2-4 weeks". ' +
+  '"recommendedPilot" is one short sentence describing a small, testable first pilot for this opportunity. ' +
+  '"valueCalculation.formula" is one short line showing the calculation shape for estimating this opportunity\'s value from the business\'s own numbers, e.g. "Unanswered or delayed inquiries per month x incremental booking rate x average gross profit per job" -- a formula only, never a computed dollar amount, since none of the inputs are knowable from a public website. ' +
+  '"valueCalculation.dataNeeded" must contain 2-5 short items naming the specific internal numbers the business would need to supply to run that formula (e.g. "Monthly service inquiries", "Current booking rate", "Average gross profit per job"). ' +
   '"practicalApproach" must be an array of 2-4 short, sequential, concrete action steps. ' +
-  "considerations must contain 1-3 specific, non-obvious risks or dependencies. " +
-  '"consultationPreparation" must contain 2-4 short questions the reader could bring to the complimentary 30-minute AI Opportunity & Strategy Review call -- frame it as a free strategy call, not a paid engagement. ' +
-  '"closingNote" is 1-3 sentences inviting the reader to book that complimentary call. ' +
-  "headline must be a short, benefit-focused title only (under 100 characters) -- the application already displays rank and numeric ratings separately, so do not restate rank, scores, or ratings inside headline. " +
-  "Never invent specific facts (revenue, employee count, named customers) that are not shown or clearly implied on the website; when uncertain, stay general rather than fabricate.";
+  "considerations must contain 1-3 specific, non-obvious risks or dependencies. When the opportunity involves customer reviews, never suggest selectively soliciting only satisfied customers or discouraging negative reviews -- the same neutral review invitation should go to every eligible customer, with negative feedback separately routed to staff for service recovery, not withheld from the public review flow. " +
+  '"consultationPreparation" must contain 3-5 short items naming the operating numbers (e.g. monthly inquiry volume, missed-call count, unsold estimate count, average job value) the reader should bring to a 20-minute call to validate whether an opportunity below is financially material -- frame it as a quick numbers-based validation call, not a generic strategy session or a paid engagement. ' +
+  '"closingNote" is 1-3 sentences inviting the reader to validate the opportunity on that 20-minute call. ' +
+  "Never invent specific facts (revenue, employee count, named customers, a computed dollar figure) that are not shown or clearly implied on the website; when uncertain, stay general rather than fabricate.";
 
 function buildLiteUntrustedIntakeEnvelope(profile: HvacLiteCompanyProfile) {
   const serialized = escapeIntakeJsonForEnvelope(JSON.stringify(profile));
@@ -184,11 +211,42 @@ function buildSiteSignalsBlock(signals: HvacSiteSignals) {
   return `<DETECTED_SITE_SIGNALS>\n${JSON.stringify(signals)}\n</DETECTED_SITE_SIGNALS>`;
 }
 
+const FINANCIAL_LEVERS: readonly HvacOpportunityFinancialLever[] = [
+  "revenue",
+  "cost-savings",
+  "capacity",
+  "customer-experience",
+];
+const IMPACT_LEVELS: readonly HvacOpportunityImpact[] = ["high", "medium", "moderate"];
+const CONFIDENCE_LEVELS: readonly HvacOpportunityConfidence[] = [
+  "strong-evidence",
+  "moderate-evidence",
+  "limited-evidence",
+];
+const EASE_LEVELS: readonly HvacOpportunityEase[] = ["straightforward", "moderate", "involved"];
+
+function oneOf<Value extends string>(value: unknown, allowed: readonly Value[]): Value {
+  if (typeof value !== "string" || !(allowed as readonly string[]).includes(value))
+    throw new ScannerAnalysisError("llm_schema");
+  return value as Value;
+}
+
+function validateValueCalculation(value: unknown) {
+  assertExactObject(value, ["formula", "dataNeeded"]);
+  return {
+    formula: boundedString(value.formula, 300),
+    dataNeeded: boundedStringArray(value.dataNeeded, 2, 5, 120),
+  };
+}
+
 function validateLiteReportResponse(
   value: unknown,
   ranked: readonly RankedScannerCandidate[],
 ): ScannerReportCopy {
   assertExactObject(value, [
+    "reportTitle",
+    "preparedForNote",
+    "whatWeObserved",
     "executiveSummary",
     "recommendedStartingPoint",
     "opportunities",
@@ -207,6 +265,13 @@ function validateLiteReportResponse(
         "candidateId",
         "headline",
         "whyItMatters",
+        "financialLever",
+        "potentialImpact",
+        "confidence",
+        "easeOfImplementation",
+        "timeToValue",
+        "recommendedPilot",
+        "valueCalculation",
         "practicalApproach",
         "considerations",
       ]);
@@ -217,6 +282,13 @@ function validateLiteReportResponse(
         candidateId,
         headline: boundedString(entry.headline, 140),
         whyItMatters: boundedString(entry.whyItMatters, 800),
+        financialLever: oneOf(entry.financialLever, FINANCIAL_LEVERS),
+        potentialImpact: oneOf(entry.potentialImpact, IMPACT_LEVELS),
+        confidence: oneOf(entry.confidence, CONFIDENCE_LEVELS),
+        easeOfImplementation: oneOf(entry.easeOfImplementation, EASE_LEVELS),
+        timeToValue: boundedString(entry.timeToValue, 40),
+        recommendedPilot: boundedString(entry.recommendedPilot, 240),
+        valueCalculation: validateValueCalculation(entry.valueCalculation),
         practicalApproach: boundedStringArray(entry.practicalApproach, 2, 4, 250),
         considerations: boundedStringArray(entry.considerations, 1, 3, 400),
       };
@@ -224,13 +296,16 @@ function validateLiteReportResponse(
   );
 
   return {
+    reportTitle: boundedString(value.reportTitle, 160),
+    preparedForNote: boundedString(value.preparedForNote, 200),
+    whatWeObserved: boundedStringArray(value.whatWeObserved, 3, 5, 200),
     executiveSummary: boundedString(value.executiveSummary, 1600),
     recommendedStartingPoint: boundedString(value.recommendedStartingPoint, 800),
     opportunities,
     consultationPreparation: boundedStringArray(
       value.consultationPreparation,
-      2,
-      4,
+      3,
+      5,
       300,
     ),
     closingNote: boundedString(value.closingNote, 500),

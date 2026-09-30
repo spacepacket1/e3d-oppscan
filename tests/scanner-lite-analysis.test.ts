@@ -40,17 +40,39 @@ const profile = {
 
 function liteReportFor(rankedIds: string[]) {
   return {
+    reportTitle: "Three Ways Redwood HVAC May Capture More Booked Work",
+    preparedForNote:
+      "Prepared for the owner, general manager, or operations leader based on publicly available business information.",
+    whatWeObserved: [
+      "Offers residential HVAC installation and repair.",
+      "Positions itself around fast dispatch response.",
+      "Serves the Redwood service area.",
+    ],
     executiveSummary: "Short summary of the opportunity.",
     recommendedStartingPoint: "Start with dispatch automation.",
     opportunities: rankedIds.map((candidateId) => ({
       candidateId,
-      headline: "Automate dispatch confirmations",
+      headline: "Capture more booked dispatch work",
       whyItMatters: "Techs currently confirm jobs by phone, which is slow.",
+      financialLever: "revenue" as const,
+      potentialImpact: "high" as const,
+      confidence: "moderate-evidence" as const,
+      easeOfImplementation: "straightforward" as const,
+      timeToValue: "2-4 weeks",
+      recommendedPilot: "Pilot a text confirmation flow with one crew for 30 days.",
+      valueCalculation: {
+        formula: "Unanswered inquiries per month x booking rate x gross profit per job",
+        dataNeeded: ["Monthly inquiries", "Current booking rate", "Average gross profit per job"],
+      },
       practicalApproach: ["Stand up a text confirmation flow.", "Pilot with one crew."],
       considerations: ["Requires a phone-number-verified sending number."],
     })),
-    consultationPreparation: ["What CRM do you use today?", "How many trucks run daily?"],
-    closingNote: "Book the free strategy call to go deeper.",
+    consultationPreparation: [
+      "Approximate monthly inquiry volume",
+      "Missed-call count",
+      "Average job value",
+    ],
+    closingNote: "Validate the opportunity on a quick 20-minute call.",
   };
 }
 

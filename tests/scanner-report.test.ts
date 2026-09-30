@@ -133,9 +133,18 @@ describe("HVAC Lite campaign branding", () => {
         evidence: ["Evidence"], firstStep: "Start", score: 350, rank: 1, pointValue: 10,
       }],
       report: {
+        reportTitle: "Three Ways Redwood HVAC May Capture More Booked Work",
+        preparedForNote: "Prepared for the owner or general manager.",
+        whatWeObserved: ["Offers HVAC repair.", "Serves the Redwood area.", "Advertises same-day service."],
         executiveSummary: "Summary", recommendedStartingPoint: "Start",
-        opportunities: [{ candidateId: "safe-candidate", headline: "Safe", whyItMatters: "Why",
-          practicalApproach: ["How"], considerations: ["Care"] }],
+        opportunities: [{
+          candidateId: "safe-candidate", headline: "Safe", whyItMatters: "Why",
+          financialLever: "revenue" as const, potentialImpact: "high" as const,
+          confidence: "moderate-evidence" as const, easeOfImplementation: "straightforward" as const,
+          timeToValue: "2-4 weeks", recommendedPilot: "Pilot with one crew.",
+          valueCalculation: { formula: "Inquiries x booking rate x profit", dataNeeded: ["Inquiries", "Booking rate"] },
+          practicalApproach: ["How"], considerations: ["Care"],
+        }],
         consultationPreparation: ["Owner?", "Baseline?"], closingNote: "Close",
       },
       baseScore: 50,
@@ -159,20 +168,26 @@ describe("HVAC Lite campaign branding", () => {
     cookieJar.clear();
   });
 
-  it("titles the page for itera.works instead of Oppscan", async () => {
+  it("titles the page with the report's own forwardable title", async () => {
     const metadata = await generateMetadata({ params: Promise.resolve({ token: hvacToken }) });
-    expect(metadata.title).toBe("HVAC Business AI Opportunity Scanner Report | itera.works");
+    expect(metadata.title).toBe(
+      "Three Ways Redwood HVAC May Capture More Booked Work | itera.works",
+    );
   });
 
-  it("hides the default FutCo/Oppscan chrome and renders itera.works branding instead", async () => {
+  it("hides the default FutCo/Oppscan chrome and renders the business-case report instead", async () => {
     const page = await ScannerReportPage({ params: Promise.resolve({ token: hvacToken }) });
     const markup = renderToStaticMarkup(page);
-    expect(markup).toContain("HVAC Business AI Opportunity Scanner");
+    expect(markup).toContain("Three Ways Redwood HVAC May Capture More Booked Work");
     expect(markup).toContain("itera.works");
     expect(markup).toContain("support@itera.works");
     expect(markup).toContain(".oppscan-header:not(.itera-brand-chrome)");
+    expect(markup).toContain("Validate the Opportunity in 20 Minutes");
+    expect(markup).toContain("Potential opportunities identified");
     expect(markup).not.toContain("consultation included with your scanner purchase");
     expect(markup).not.toContain("Book your included consultation");
+    expect(markup).not.toContain("AI Base Score");
+    expect(markup).not.toContain("Potential Score");
   });
 
   it("books through the campaign's Calendly link instead of the site-wide booking URL", async () => {
