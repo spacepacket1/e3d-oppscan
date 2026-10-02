@@ -16,7 +16,7 @@ const SCANNER_CAMPAIGNS: Record<string, ScannerCampaignConfig> = {
   hvac_lite: {
     source: "hvac_lite",
     label: "HVAC Lite",
-    metaPixelId: "1421449840175396",
+    metaPixelId: "364837093534337",
     bookingUrl: "https://calendly.com/itera-support/oppscan-ai-strategy-call",
   },
 };
