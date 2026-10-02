@@ -8,6 +8,7 @@ import { getE3dSessionUser, isE3dAdmin } from "@/lib/e3d-session";
 import { buildPageMetadata } from "@/lib/seo";
 import { getScannerOffer } from "@/lib/scanner-payments";
 
+import { ScannerCheckoutForm } from "@/components/scanner-checkout-form";
 import { startScannerCheckout } from "./actions";
 
 type ScannerPageProps = {
@@ -70,11 +71,15 @@ export default async function AiOpportunityScannerPage({
                   {scannerContent.hero.ctaLabel}
                 </Link>
               ) : (
-                <form action={startScannerCheckout}>
+                <ScannerCheckoutForm
+                  action={startScannerCheckout}
+                  currency={offer.pack.currency.toUpperCase()}
+                  value={offer.pack.amountUsdCents / 100}
+                >
                   <button className="button button--primary" type="submit">
                     {scannerContent.hero.ctaLabel}
                   </button>
-                </form>
+                </ScannerCheckoutForm>
               )}
               <Link className="button button--secondary" href="/free">
                 Try a free simplified summary first

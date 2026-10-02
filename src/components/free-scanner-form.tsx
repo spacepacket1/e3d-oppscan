@@ -4,6 +4,8 @@ import { useActionState, useCallback, useEffect, useRef, useState } from "react"
 import type { ReactNode } from "react";
 import Link from "next/link";
 
+import { FUTCO_META_PIXEL_ID, ensureMetaPixel, trackMetaPixelEvent } from "@/lib/meta-pixel";
+
 import {
   FREE_INTAKE_FIELDS,
   mergeFreeScannerIntakeDraft,
@@ -50,6 +52,12 @@ export function FreeScannerForm({
     if (state.status !== "error") return;
     resetTurnstileWidget(TURNSTILE_WIDGET_ID);
   }, [state]);
+
+  useEffect(() => {
+    if (state.status !== "success") return;
+    ensureMetaPixel(FUTCO_META_PIXEL_ID);
+    trackMetaPixelEvent("Lead");
+  }, [state.status]);
 
   // Explicit rendering, triggered by a ref callback that fires exactly when
   // the container is attached, rather than Cloudflare's implicit

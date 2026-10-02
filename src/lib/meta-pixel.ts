@@ -20,6 +20,9 @@ declare global {
   }
 }
 
+// FutCo's Meta dataset (pixel). Shared by every campaign and the main funnel.
+export const FUTCO_META_PIXEL_ID = "364837093534337";
+
 const initializedPixelIds = new Set<string>();
 
 export function ensureMetaPixel(pixelId: string) {
@@ -53,8 +56,15 @@ export function ensureMetaPixel(pixelId: string) {
 
 export function trackMetaPixelEvent(
   event: string,
-  { custom = false }: { custom?: boolean } = {},
+  {
+    custom = false,
+    params,
+  }: { custom?: boolean; params?: Record<string, unknown> } = {},
 ) {
   if (typeof window === "undefined" || !window.fbq) return;
-  window.fbq(custom ? "trackCustom" : "track", event);
+  if (params) {
+    window.fbq(custom ? "trackCustom" : "track", event, params);
+  } else {
+    window.fbq(custom ? "trackCustom" : "track", event);
+  }
 }

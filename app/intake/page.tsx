@@ -5,10 +5,12 @@ import { headers } from "next/headers";
 import Script from "next/script";
 
 import { ScannerIntakeForm } from "@/components/scanner-intake-form";
+import { ScannerPurchasePixel } from "@/components/scanner-purchase-pixel";
 import { SectionHeading } from "@/components/section-heading";
 import { scannerContent } from "@/content/scanner-content";
 import { getE3dSessionUser, isE3dAdmin } from "@/lib/e3d-session";
 import { emptyScannerIntakeFormValues } from "@/lib/scanner-intake";
+import { getScannerOffer } from "@/lib/scanner-payments";
 import { buildPageMetadata } from "@/lib/seo";
 
 import { submitScannerIntakeForm } from "./actions";
@@ -57,8 +59,28 @@ export default async function ScannerIntakePage({
     }
   }
 
+  let purchase: { value: number; currency: string } | null = null;
+  if (stripeSessionId) {
+    try {
+      const offer = await getScannerOffer();
+      purchase = {
+        value: offer.pack.amountUsdCents / 100,
+        currency: offer.pack.currency.toUpperCase(),
+      };
+    } catch (error) {
+      console.error("intake: could not look up the offer for the Purchase pixel", error);
+    }
+  }
+
   return (
     <main className="page-main">
+      {purchase ? (
+        <ScannerPurchasePixel
+          currency={purchase.currency}
+          stripeSessionId={stripeSessionId}
+          value={purchase.value}
+        />
+      ) : null}
       {turnstileSiteKey ? (
         <Script
           async

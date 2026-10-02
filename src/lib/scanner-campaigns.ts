@@ -1,3 +1,5 @@
+import { FUTCO_META_PIXEL_ID } from "@/lib/meta-pixel";
+
 // Registry of ad-campaign-specific scanner variants (HVAC Lite is the
 // first). A completed report optionally tags itself with a campaign source
 // (see ScannerCompletedReport.campaign in scanner-report-store.ts); the
@@ -16,7 +18,7 @@ const SCANNER_CAMPAIGNS: Record<string, ScannerCampaignConfig> = {
   hvac_lite: {
     source: "hvac_lite",
     label: "HVAC Lite",
-    metaPixelId: "364837093534337",
+    metaPixelId: FUTCO_META_PIXEL_ID,
     bookingUrl: "https://calendly.com/itera-support/oppscan-ai-strategy-call",
   },
 };

@@ -7,6 +7,7 @@ import { Archivo, IBM_Plex_Mono, Inter } from "next/font/google";
 import { contactDetails, siteIdentity } from "@/content/site-config";
 import { E3dSessionProvider } from "@/components/e3d-session-context";
 import { HeaderAccountStatus } from "@/components/header-account-status";
+import { SiteMetaPixel } from "@/components/site-meta-pixel";
 import { buildRootMetadata } from "@/lib/seo";
 
 import "./globals.css";
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html className={`${inter.variable} ${archivo.variable} ${plexMono.variable}`} lang="en">
       <body>
+        <SiteMetaPixel />
         <E3dSessionProvider>
           <div className="site-root">
             <a className="skip-link" href="#main-content">
