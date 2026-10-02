@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { siteIdentity } from "@/content/site-config";
 
-const DEFAULT_SITE_URL = "https://oppscan.e3d.ai";
+const DEFAULT_SITE_URL = "https://oppscan.futco.ai";
 
 type PageMetadataInput = {
   path: string;
@@ -32,7 +32,7 @@ export function isIndexableDeployment() {
     return false;
   }
 
-  return host === "oppscan.e3d.ai";
+  return host === "oppscan.futco.ai";
 }
 
 export function buildPageMetadata({

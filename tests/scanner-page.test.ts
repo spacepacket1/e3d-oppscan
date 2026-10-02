@@ -182,8 +182,8 @@ describe("Phase 3 scanner landing page", () => {
           product: "scanner",
           packId: "single",
           successUrl:
-            "https://oppscan.e3d.ai/intake?stripe_session_id={CHECKOUT_SESSION_ID}",
-          cancelUrl: "https://oppscan.e3d.ai/?stripe_cancelled=1",
+            "https://oppscan.futco.ai/intake?stripe_session_id={CHECKOUT_SESSION_ID}",
+          cancelUrl: "https://oppscan.futco.ai/?stripe_cancelled=1",
         }),
       }),
     );

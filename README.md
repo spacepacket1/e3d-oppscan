@@ -4,7 +4,7 @@ AI Opportunity Scanner: a paid, manual-report product that takes a short
 business intake, generates a ranked set of AI opportunity candidates via an
 LLM pipeline, and delivers a written report plus a consultation booking —
 extracted from Applied FutCo AI's consulting site into its own standalone
-product at `oppscan.e3d.ai`.
+product at `oppscan.futco.ai` (moved from `oppscan.e3d.ai`).
 
 ## Stack
 
@@ -35,7 +35,7 @@ generation will fail closed rather than silently degrade.
 - `E3D_SCANNER_INTERNAL_SERVICE_KEY`, `E3D_API_BASE_URL` — shared payments API auth/base URL; also used by `/hvac` to auto-analyze the submitted site (no interactive prefill step there).
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` — bot protection on the intake form (and `/hvac`).
 - `NEXT_PUBLIC_BOOKING_URL` — consultation booking link (falls back to the parent site's contact page). Not used by `/hvac` reports, which book through their own Calendly link (see `src/lib/scanner-campaigns.ts`).
-- `NEXT_PUBLIC_SITE_URL` — this site's own canonical origin (`https://oppscan.e3d.ai` in production).
+- `NEXT_PUBLIC_SITE_URL` — this site's own canonical origin (`https://oppscan.futco.ai` in production).
 
 ## Testing
 
@@ -47,5 +47,5 @@ npm run test:mongo  # requires a real MongoDB replica set at SCANNER_MONGO_URL
 ## Deployment
 
 Runs via `ops/run/run-oppscan.sh` under PM2, behind nginx on
-`oppscan.e3d.ai`. See the sibling `e3d-applied` repo's `ops/run/run-applied.sh`
+`oppscan.futco.ai`. See the sibling `e3d-applied` repo's `ops/run/run-applied.sh`
 for the same convention this mirrors.
