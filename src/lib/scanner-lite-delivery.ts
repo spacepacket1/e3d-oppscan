@@ -2,7 +2,7 @@ import { getScannerCampaign } from "@/lib/scanner-campaigns";
 import { sendHvacLiteReportEmailViaSes } from "@/lib/scanner-lite-email-ses";
 
 // Delivery for the HVAC Lite flow supports two providers:
-//   "webhook" -- POSTs the lead to itera.works' HighLevel CRM (SCANNER_LITE_
+//   "webhook" -- POSTs the lead to the HighLevel CRM (SCANNER_LITE_
 //     INTAKE_*, separate from the paid intake's SCANNER_INTAKE_* webhook),
 //     which is expected to be the thing that actually emails the report
 //     link to the lead. This is the intended long-term path.

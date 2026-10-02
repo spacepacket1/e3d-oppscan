@@ -5,9 +5,9 @@ import { notFound } from "next/navigation";
 import { HvacLiteReport } from "@/components/hvac-lite-report";
 import {
   HideDefaultSiteChrome,
-  IteraBrandFooter,
-  IteraBrandHeader,
-} from "@/components/itera-brand-chrome";
+  HvacBrandFooter,
+  HvacBrandHeader,
+} from "@/components/hvac-brand-chrome";
 import { ScannerCampaignPixel } from "@/components/scanner-campaign-pixel";
 import { ScannerReport } from "@/components/scanner-report";
 import { hvacLiteContent } from "@/content/hvac-content";
@@ -63,9 +63,9 @@ export default async function ScannerReportPage({
     return (
       <>
         {isHvacLite ? <HideDefaultSiteChrome /> : null}
-        {isHvacLite ? <IteraBrandHeader /> : null}
+        {isHvacLite ? <HvacBrandHeader /> : null}
         <ReportEmailGate action={verifyReportEmail.bind(null, token)} />
-        {isHvacLite ? <IteraBrandFooter /> : null}
+        {isHvacLite ? <HvacBrandFooter /> : null}
       </>
     );
   }
@@ -80,7 +80,7 @@ export default async function ScannerReportPage({
   return (
     <>
       {isHvacLite ? <HideDefaultSiteChrome /> : null}
-      {isHvacLite ? <IteraBrandHeader /> : null}
+      {isHvacLite ? <HvacBrandHeader /> : null}
       <main className="page-main">
         {campaign ? <ScannerCampaignPixel pixelId={campaign.metaPixelId} /> : null}
         <section className="page-section">
@@ -100,7 +100,7 @@ export default async function ScannerReportPage({
           </div>
         </section>
       </main>
-      {isHvacLite ? <IteraBrandFooter /> : null}
+      {isHvacLite ? <HvacBrandFooter /> : null}
     </>
   );
 }

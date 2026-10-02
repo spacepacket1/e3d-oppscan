@@ -171,7 +171,7 @@ describe("HVAC Lite campaign branding", () => {
   it("titles the page with the report's own forwardable title", async () => {
     const metadata = await generateMetadata({ params: Promise.resolve({ token: hvacToken }) });
     expect(metadata.title).toBe(
-      "Three Ways Redwood HVAC May Capture More Booked Work | itera.works",
+      "Three Ways Redwood HVAC May Capture More Booked Work | FutCo",
     );
   });
 
@@ -179,9 +179,9 @@ describe("HVAC Lite campaign branding", () => {
     const page = await ScannerReportPage({ params: Promise.resolve({ token: hvacToken }) });
     const markup = renderToStaticMarkup(page);
     expect(markup).toContain("Three Ways Redwood HVAC May Capture More Booked Work");
-    expect(markup).toContain("itera.works");
-    expect(markup).toContain("support@itera.works");
-    expect(markup).toContain(".oppscan-header:not(.itera-brand-chrome)");
+    expect(markup).toContain("FutCo");
+    expect(markup).toContain("help@futco.ai");
+    expect(markup).toContain(".oppscan-header:not(.hvac-brand-chrome)");
     expect(markup).toContain("Validate the Opportunity in 20 Minutes");
     expect(markup).toContain("Potential opportunities identified");
     expect(markup).not.toContain("consultation included with your scanner purchase");

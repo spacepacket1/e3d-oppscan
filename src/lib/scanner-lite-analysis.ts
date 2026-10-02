@@ -139,7 +139,7 @@ function readDraftField(
 // specific to how HVAC businesses actually operate and make money, rather
 // than the generic-service-business patterns (intake, message drafting,
 // routing) the shared CANDIDATE_SCHEMA_INSTRUCTIONS alone tends to produce.
-// The categories deliberately line up with what itera.works actually sells
+// The categories deliberately line up with what FutCo actually sells
 // on the follow-up call (per Chapple's spec: comms/follow-up automation,
 // reactivating old customer lists, review/reputation management, turning
 // the website into a lead generator) so the free report sets up that pitch

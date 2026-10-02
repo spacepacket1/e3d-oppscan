@@ -43,14 +43,14 @@ export async function sendHvacLiteReportEmailViaSes(
     "Want to talk it through? Book a complimentary 30-minute AI Opportunity & Strategy Review:",
     bookingUrl,
     "",
-    "- The Team @ itera.works",
+    "- The Team @ FutCo",
   ].join("\n");
   const htmlBody =
     `<p>Hi,</p>` +
     `<p>Your free AI opportunity report is ready: <a href="${reportUrl}">${reportUrl}</a></p>` +
     `<p>Want to talk it through? Book a complimentary 30-minute AI Opportunity &amp; Strategy Review: ` +
     `<a href="${bookingUrl}">${bookingUrl}</a></p>` +
-    `<p>- The Team @ itera.works</p>`;
+    `<p>- The Team @ FutCo</p>`;
 
   try {
     await client.send(

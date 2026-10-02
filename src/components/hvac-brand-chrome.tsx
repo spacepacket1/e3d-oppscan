@@ -1,10 +1,12 @@
+import Image from "next/image";
+
 import { hvacLiteContent } from "@/content/hvac-content";
 
 // The site-wide header/footer in app/layout.tsx is FutCo/Oppscan-branded
 // and wraps every route -- there's no per-route or per-record layout
 // override mechanism in the App Router for a decision that (for the report
 // page) depends on data only known after the page fetches its record. This
-// hides that default chrome via CSS and renders itera.works-branded chrome
+// hides that default chrome via CSS and renders FutCo-branded chrome
 // in its place, reusing the same oppscan-header/oppscan-footer classes (and
 // their existing styling) so visual layout stays consistent. `:not(...)`
 // keeps the hide rule from also hiding the replacement chrome below, since
@@ -12,16 +14,23 @@ import { hvacLiteContent } from "@/content/hvac-content";
 export function HideDefaultSiteChrome() {
   return (
     <style>
-      {".oppscan-header:not(.itera-brand-chrome), .oppscan-footer:not(.itera-brand-chrome) { display: none; }"}
+      {".oppscan-header:not(.hvac-brand-chrome), .oppscan-footer:not(.hvac-brand-chrome) { display: none; }"}
     </style>
   );
 }
 
-export function IteraBrandHeader() {
+export function HvacBrandHeader() {
   return (
-    <header className="oppscan-header itera-brand-chrome">
+    <header className="oppscan-header hvac-brand-chrome">
       <div className="container oppscan-header__inner">
         <a className="site-header__brand" href={hvacLiteContent.brand.homeHref}>
+          <Image
+            alt="FutCo"
+            className="site-header__brand-mark"
+            height={44}
+            src="/futco-logo.png"
+            width={44}
+          />
           <span className="oppscan-header__wordmark">{hvacLiteContent.brand.productName}</span>
         </a>
       </div>
@@ -29,9 +38,9 @@ export function IteraBrandHeader() {
   );
 }
 
-export function IteraBrandFooter() {
+export function HvacBrandFooter() {
   return (
-    <footer className="oppscan-footer itera-brand-chrome">
+    <footer className="oppscan-footer hvac-brand-chrome">
       <div className="container oppscan-footer__inner">
         <p>{hvacLiteContent.brand.footerTagline}</p>
         <nav className="oppscan-footer__links" aria-label="Footer">

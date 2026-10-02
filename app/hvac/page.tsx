@@ -4,9 +4,9 @@ import Script from "next/script";
 import { HvacLiteForm } from "@/components/hvac-lite-form";
 import {
   HideDefaultSiteChrome,
-  IteraBrandFooter,
-  IteraBrandHeader,
-} from "@/components/itera-brand-chrome";
+  HvacBrandFooter,
+  HvacBrandHeader,
+} from "@/components/hvac-brand-chrome";
 import { SectionHeading } from "@/components/section-heading";
 import { hvacLiteContent } from "@/content/hvac-content";
 import { emptyHvacLiteIntakeValues } from "@/lib/scanner-lite-intake";
@@ -31,7 +31,7 @@ export default function HvacLiteScannerPage() {
   return (
     <>
       <HideDefaultSiteChrome />
-      <IteraBrandHeader />
+      <HvacBrandHeader />
       <main className="page-main">
         {turnstileSiteKey ? (
           <Script
@@ -69,7 +69,7 @@ export default function HvacLiteScannerPage() {
           </div>
         </section>
       </main>
-      <IteraBrandFooter />
+      <HvacBrandFooter />
     </>
   );
 }
