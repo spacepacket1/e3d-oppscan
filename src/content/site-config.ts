@@ -7,7 +7,7 @@ export const siteIdentity = {
 export const primaryCta = {
   label: "Book an Intro Call",
   // No standalone contact page here yet; fall back to the parent site's.
-  fallbackHref: "https://applied.futco.ai/contact",
+  fallbackHref: "https://futco.ai/contact",
 } as const;
 
 export const contactDetails = {

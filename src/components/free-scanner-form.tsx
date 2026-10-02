@@ -289,7 +289,7 @@ export function FreeScannerForm({
 
       <p className="development-note">
         No payment, no account. Read the{" "}
-        <a href="https://applied.futco.ai/privacy">privacy policy</a>.
+        <a href="https://futco.ai/privacy">privacy policy</a>.
       </p>
 
       <button className="button button--primary" disabled={isPending} type="submit">

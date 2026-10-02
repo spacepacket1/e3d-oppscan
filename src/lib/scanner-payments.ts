@@ -139,7 +139,7 @@ export async function createScannerCheckoutSession(
   fetchImpl: FetchLike = fetch,
 ): Promise<{ url: string; sessionId: string }> {
   // This app is a separate host from the scanner's original home
-  // (applied.futco.ai), which is still the shared payments API's default
+  // (futco.ai, formerly applied.futco.ai), which is still the shared payments API's default
   // success/cancel destination for the "scanner" product. Override both so
   // Stripe returns the customer here instead. The API validates the host
   // against its own allowlist, independent of this override.

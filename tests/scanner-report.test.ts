@@ -104,7 +104,7 @@ describe("scanner report authorization and telemetry", () => {
     vi.stubEnv("NEXT_PUBLIC_BOOKING_URL", "");
     const validRequest = new Request(`https://oppscan.e3d.ai/report/${token}/consultation`);
     const response = await consultation(validRequest, { params: Promise.resolve({ token }) });
-    expect(response.headers.get("location")).toBe("https://applied.futco.ai/contact");
+    expect(response.headers.get("location")).toBe("https://futco.ai/contact");
     expect(telemetry.mock.calls[0][0]).toMatchObject({ destinationType: "contact" });
     telemetry.mockClear();
     for (const invalid of ["bad+token", deriveReportAccessToken("scan_other_customer")]) {

@@ -69,8 +69,8 @@ export default function RootLayout({ children }: RootLayoutProps) {
                 <p>{siteIdentity.footerTagline}</p>
                 <nav className="oppscan-footer__links" aria-label="Footer">
                   <a href={`mailto:${contactDetails.email}`}>{contactDetails.email}</a>
-                  <a href="https://applied.futco.ai/privacy">Privacy</a>
-                  <a href="https://applied.futco.ai/terms">Terms</a>
+                  <a href="https://futco.ai/privacy">Privacy</a>
+                  <a href="https://futco.ai/terms">Terms</a>
                 </nav>
               </div>
             </footer>
