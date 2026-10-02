@@ -21,7 +21,7 @@ declare global {
 }
 
 // FutCo's Meta dataset (pixel). Shared by every campaign and the main funnel.
-export const FUTCO_META_PIXEL_ID = "364837093534337";
+export const FUTCO_META_PIXEL_ID = "830466076817927";
 
 const initializedPixelIds = new Set<string>();
 
