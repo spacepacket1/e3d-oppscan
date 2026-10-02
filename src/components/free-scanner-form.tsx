@@ -33,6 +33,21 @@ type PrefillResponse =
   | { ok: true; draft: FreeScannerIntakeDraft }
   | { ok: false; reason: string };
 
+// Plain-language reason a site could not be pre-filled. None of these block
+// the free summary -- the visitor can always describe their business by hand.
+function prefillFailureMessage(reason: string) {
+  switch (reason) {
+    case "fetch_failed":
+    case "blocked_host":
+    case "not_html":
+      return "That site doesn't let automated tools read it, so we couldn't pre-fill. Just describe your business below — it takes about a minute.";
+    case "timeout":
+      return "That site took too long to respond, so we couldn't pre-fill. Just describe your business below — it takes about a minute.";
+    default:
+      return "We couldn't pre-fill from that site. Just describe your business below — it takes about a minute.";
+  }
+}
+
 export function FreeScannerForm({
   action,
   initialState,
@@ -41,6 +56,7 @@ export function FreeScannerForm({
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [values, setValues] = useState<FreeScannerIntakeValues>(state.values);
   const [prefillState, setPrefillState] = useState<PrefillStatus>("idle");
+  const [prefillFailureReason, setPrefillFailureReason] = useState("");
   const [draftedFields, setDraftedFields] = useState<FreeScannerIntakeFieldKey[]>([]);
   const [turnstileFailed, setTurnstileFailed] = useState(false);
   const [turnstileScriptBlocked, setTurnstileScriptBlocked] = useState(false);
@@ -127,6 +143,7 @@ export function FreeScannerForm({
   async function runPrefill() {
     const website = values.companyWebsite.trim();
     if (!website) {
+      setPrefillFailureReason("");
       setPrefillState("failed");
       return;
     }
@@ -140,6 +157,7 @@ export function FreeScannerForm({
       });
       const payload = (await response.json()) as PrefillResponse;
       if (!payload.ok) {
+        setPrefillFailureReason(payload.reason);
         setPrefillState("failed");
         return;
       }
@@ -148,6 +166,7 @@ export function FreeScannerForm({
       setDraftedFields(merged.draftedFields);
       setPrefillState("done");
     } catch {
+      setPrefillFailureReason("");
       setPrefillState("failed");
     }
   }
@@ -189,10 +208,14 @@ export function FreeScannerForm({
             site — review and edit below.
           </p>
         ) : null}
-        {prefillState === "failed" ? (
+        {prefillState === "done" && draftedFields.length === 0 ? (
           <p className="development-note">
-            Couldn&apos;t analyze that site — fill in the fields below manually.
+            We didn&apos;t find much readable text on that page, so there was nothing to pre-fill.
+            Just describe your business below — it takes about a minute.
           </p>
+        ) : null}
+        {prefillState === "failed" ? (
+          <p className="development-note">{prefillFailureMessage(prefillFailureReason)}</p>
         ) : null}
       </Field>
 
