@@ -7,8 +7,8 @@ declare global {
   }
 }
 
-// FutCo's GA4 measurement ID, shared by every public page.
-export const FUTCO_GA_MEASUREMENT_ID = "G-40WJ4KCGDR";
+// Oppscan GA4 measurement ID (the oppscan.futco.ai data stream).
+export const FUTCO_GA_MEASUREMENT_ID = "G-CQJSKQ5PW8";
 
 let configuredId: string | null = null;
 
