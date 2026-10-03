@@ -4,6 +4,11 @@ import { useActionState, useCallback, useEffect, useRef, useState } from "react"
 
 import { hvacLiteContent } from "@/content/hvac-content";
 import { getScannerCampaign } from "@/lib/scanner-campaigns";
+import {
+  HVAC_TOOL_CHOICES,
+  HVAC_TOOL_LABELS,
+  type HvacToolChoice,
+} from "@/lib/scanner-lite-stack";
 import { ensureMetaPixel, trackMetaPixelEvent } from "@/lib/meta-pixel";
 import type { HvacLiteFormState, HvacLiteIntakeValues } from "@/lib/scanner-lite-intake";
 import { mountTurnstileWidget, resetTurnstileWidget } from "@/lib/turnstile-widget";
@@ -133,6 +138,32 @@ export function HvacLiteForm({
         ) : null}
         <p className="development-note">{hvacLiteContent.form.emailNotice}</p>
       </div>
+
+      <details className="form-field" open={values.toolsUsed.length > 0}>
+        <summary>{hvacLiteContent.form.toolsSummary}</summary>
+        <p className="development-note">{hvacLiteContent.form.toolsHelp}</p>
+        {HVAC_TOOL_CHOICES.map((tool) => (
+          <div className="contact-form__consent contact-form__tool" key={tool}>
+            <input
+              checked={values.toolsUsed.includes(tool)}
+              id={`tool-${tool}`}
+              name="toolsUsed"
+              onChange={(event) => {
+                const checked = event.currentTarget.checked;
+                setValues((current) => ({
+                  ...current,
+                  toolsUsed: checked
+                    ? [...current.toolsUsed, tool as HvacToolChoice]
+                    : current.toolsUsed.filter((entry) => entry !== tool),
+                }));
+              }}
+              type="checkbox"
+              value={tool}
+            />
+            <label htmlFor={`tool-${tool}`}>{HVAC_TOOL_LABELS[tool]}</label>
+          </div>
+        ))}
+      </details>
 
       <div className="contact-form__consent">
         <input

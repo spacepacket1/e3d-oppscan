@@ -11,6 +11,7 @@ const validValues: HvacLiteIntakeValues = {
   companyWebsite: "https://redwoodhvac.example.com",
   workEmail: "owner@redwoodhvac.example.com",
   marketingOptIn: false,
+  toolsUsed: [],
   website: "",
   turnstileToken: "",
 };
@@ -21,6 +22,7 @@ function buildFormData(overrides: Partial<HvacLiteIntakeValues> = {}) {
   formData.set("companyWebsite", merged.companyWebsite);
   formData.set("workEmail", merged.workEmail);
   if (merged.marketingOptIn) formData.set("marketingOptIn", "on");
+  for (const tool of merged.toolsUsed) formData.append("toolsUsed", tool);
   formData.set("website", merged.website);
   formData.set("turnstileToken", merged.turnstileToken);
   return formData;
@@ -36,6 +38,18 @@ describe("hvacLiteIntakeValuesFromFormData", () => {
       marketingOptIn: true,
       turnstileToken: "turnstile-response-token",
     });
+  });
+
+  it("keeps only allow-listed, de-duplicated tool choices", () => {
+    const formData = buildFormData();
+    formData.append("toolsUsed", "jobber");
+    formData.append("toolsUsed", "jobber");
+    formData.append("toolsUsed", "<script>alert(1)</script>");
+    formData.append("toolsUsed", "spreadsheets_paper");
+    expect(hvacLiteIntakeValuesFromFormData(formData).toolsUsed).toEqual([
+      "jobber",
+      "spreadsheets_paper",
+    ]);
   });
 
   it("treats a missing checkbox field as opted out", () => {

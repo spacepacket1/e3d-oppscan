@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { DeleteReportButton } from "@/components/delete-report-button";
 import { deleteReport, toggleReportRevoked } from "@/lib/admin-actions";
+import { HVAC_PLATFORM_CAPABILITIES } from "@/lib/hvac-platform-capabilities";
 import type { ScannerReportForAdmin } from "@/lib/scanner-report-store";
 
 export function AdminReportsTable({
@@ -21,6 +22,7 @@ export function AdminReportsTable({
           <th scope="col">Completed</th>
           <th scope="col">Checkout email</th>
           <th scope="col">Base / Potential</th>
+          <th scope="col">Fit / Platform</th>
           <th scope="col">Status</th>
           <th scope="col">Actions</th>
         </tr>
@@ -33,6 +35,17 @@ export function AdminReportsTable({
             <td>{report.checkoutEmail ?? "(unknown)"}</td>
             <td>
               {report.baseScore ?? "—"}/100 · {report.potentialScore ?? "—"}/100
+            </td>
+            <td>
+              {report.campaign?.leadContext
+                ? `${report.campaign.leadContext.fit.tier} · ${
+                    report.campaign.leadContext.primaryPlatform
+                      ? HVAC_PLATFORM_CAPABILITIES[
+                          report.campaign.leadContext.primaryPlatform
+                        ].label
+                      : "unknown"
+                  }`
+                : "—"}
             </td>
             <td>{report.revoked ? "Revoked" : "Active"}</td>
             <td>

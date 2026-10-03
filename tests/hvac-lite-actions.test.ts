@@ -15,6 +15,9 @@ const analysisMocks = vi.hoisted(() => ({
 const deliveryMocks = vi.hoisted(() => ({
   deliverScannerLiteSubmission: vi.fn(),
 }));
+const stackMocks = vi.hoisted(() => ({
+  detectHvacStack: vi.fn(),
+}));
 const siteSignalsMocks = vi.hoisted(() => ({
   detectHvacSiteSignals: vi.fn(),
 }));
@@ -56,6 +59,14 @@ vi.mock("@/lib/scanner-lite-site-signals", async () => {
   return { ...actual, ...siteSignalsMocks };
 });
 
+vi.mock("@/lib/scanner-lite-stack", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/scanner-lite-stack")>(
+    "@/lib/scanner-lite-stack",
+  );
+  return { ...actual, ...stackMocks };
+});
+
+import { emptyHvacDetectedStack } from "@/lib/scanner-lite-stack";
 import { orchestrateHvacLiteIntake, submitHvacLiteIntake } from "../app/hvac/actions";
 import { HvacLiteProfileError } from "@/lib/scanner-lite-analysis";
 import { emptyHvacSiteSignals } from "@/lib/scanner-lite-site-signals";
@@ -75,6 +86,7 @@ const validValues: HvacLiteIntakeValues = {
   companyWebsite: "https://redwoodhvac.example.com",
   workEmail: "owner@redwoodhvac.example.com",
   marketingOptIn: true,
+  toolsUsed: [],
   website: "",
   turnstileToken: "",
 };
@@ -149,6 +161,7 @@ describe("submitHvacLiteIntake", () => {
     securityMocks.verifyTurnstileToken.mockResolvedValue(true);
     analysisMocks.fetchHvacLiteCompanyProfile.mockResolvedValue(profile);
     siteSignalsMocks.detectHvacSiteSignals.mockResolvedValue(emptyHvacSiteSignals);
+    stackMocks.detectHvacStack.mockResolvedValue(emptyHvacDetectedStack);
     analysisMocks.generateLiteScannerAnalysis.mockResolvedValue(buildAnalysisResult());
     deliveryMocks.deliverScannerLiteSubmission.mockResolvedValue({ ok: true });
   });
@@ -239,6 +252,7 @@ describe("orchestrateHvacLiteIntake", () => {
     );
     analysisMocks.fetchHvacLiteCompanyProfile.mockResolvedValue(profile);
     siteSignalsMocks.detectHvacSiteSignals.mockResolvedValue(emptyHvacSiteSignals);
+    stackMocks.detectHvacStack.mockResolvedValue(emptyHvacDetectedStack);
     analysisMocks.generateLiteScannerAnalysis.mockResolvedValue(buildAnalysisResult());
     deliveryMocks.deliverScannerLiteSubmission.mockResolvedValue({ ok: true });
   });
@@ -253,8 +267,36 @@ describe("orchestrateHvacLiteIntake", () => {
     await orchestrateHvacLiteIntake(validValues, "1.1.1.1", { store });
     const scanId = deriveLiteScanId(validValues.workEmail, validValues.companyWebsite);
     const completed = await store.getByScanId(scanId);
-    expect(completed?.campaign).toEqual({ source: "hvac_lite" });
+    expect(completed?.campaign?.source).toBe("hvac_lite");
     expect(completed?.checkoutEmail).toBe(validValues.workEmail);
+  });
+
+  it("stores the stack and fit assessment, merging self-reported and detected tools", async () => {
+    stackMocks.detectHvacStack.mockResolvedValue({
+      platform: "housecall_pro",
+      onlineBooking: true,
+      chatWidget: false,
+    });
+    const store = new InMemoryScannerReportStore();
+    await orchestrateHvacLiteIntake(
+      { ...validValues, toolsUsed: ["jobber"] },
+      "1.1.1.1",
+      { store },
+    );
+    const scanId = deriveLiteScanId(validValues.workEmail, validValues.companyWebsite);
+    const completed = await store.getByScanId(scanId);
+    const context = completed?.campaign?.leadContext;
+    expect(context?.primaryPlatform).toBe("jobber");
+    expect(context?.detected.platform).toBe("housecall_pro");
+    expect(context?.fit.tier).toBe("strong");
+    expect(analysisMocks.generateLiteScannerAnalysis).toHaveBeenCalledWith(
+      expect.any(String),
+      profile,
+      expect.objectContaining({ leadContext: context }),
+    );
+    expect(deliveryMocks.deliverScannerLiteSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({ leadContext: context }),
+    );
   });
 
   it("re-attempts delivery (without regenerating) when the report already exists", async () => {

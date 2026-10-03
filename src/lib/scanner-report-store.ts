@@ -6,8 +6,16 @@ import {
 } from "node:crypto";
 
 import { createMongoScannerReportStore } from "@/lib/mongodb-scanner-report-store";
+import type { HvacLeadContext } from "@/lib/hvac-fit";
 import type { ScannerReportCopy } from "@/lib/scanner-analysis";
 import type { RankedScannerCandidate } from "@/lib/scanner-scoring";
+
+// Ad-campaign tag on a completed report. `leadContext` (HVAC Lite only) holds
+// the business's software stack and our internal fit assessment.
+export type ScannerCampaignTag = {
+  source: string;
+  leadContext?: HvacLeadContext;
+};
 
 export type ScannerCompletedReport = {
   scanId: string;
@@ -34,7 +42,7 @@ export type ScannerCompletedReport = {
   // (Pixel ID, booking URL) from scanner-campaigns.ts by this source string
   // rather than persisting it here, so it can be corrected without a data
   // migration.
-  campaign?: { source: string };
+  campaign?: ScannerCampaignTag;
 };
 
 export type ScannerReportCompletionInput = Pick<

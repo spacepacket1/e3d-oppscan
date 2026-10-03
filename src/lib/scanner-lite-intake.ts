@@ -1,4 +1,7 @@
-// The HVAC Lite intake: just a website and a work email, unlike the free
+import { sanitizeToolChoices, type HvacToolChoice } from "@/lib/scanner-lite-stack";
+
+// The HVAC Lite intake: a website and a work email (plus an optional
+// "what software do you use?" tick-list), unlike the free
 // tier's seven fields or the paid intake's twenty-plus. OppScan reviews the
 // public site itself instead of asking the visitor to describe goals or
 // workflows -- see scanner-lite-analysis.ts.
@@ -6,6 +9,9 @@ export type HvacLiteIntakeValues = {
   companyWebsite: string;
   workEmail: string;
   marketingOptIn: boolean;
+  // Optional, self-reported. Always passed through sanitizeToolChoices, so
+  // only values from the fixed allow-list ever reach the rest of the app.
+  toolsUsed: HvacToolChoice[];
   website: string; // honeypot
   turnstileToken: string;
 };
@@ -24,6 +30,7 @@ export const emptyHvacLiteIntakeValues: HvacLiteIntakeValues = {
   companyWebsite: "",
   workEmail: "",
   marketingOptIn: false,
+  toolsUsed: [],
   website: "",
   turnstileToken: "",
 };
@@ -48,6 +55,9 @@ export function hvacLiteIntakeValuesFromFormData(
     companyWebsite: valueFromFormData(formData, "companyWebsite"),
     workEmail: valueFromFormData(formData, "workEmail"),
     marketingOptIn: formData.get("marketingOptIn") === "on",
+    toolsUsed: sanitizeToolChoices(
+      formData.getAll("toolsUsed").filter((v): v is string => typeof v === "string"),
+    ),
     website: valueFromFormData(formData, "website"),
     turnstileToken:
       valueFromFormData(formData, "cf-turnstile-response") ||

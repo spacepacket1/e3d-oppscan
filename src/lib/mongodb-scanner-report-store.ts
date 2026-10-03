@@ -9,6 +9,7 @@ import type { ScannerReportCopy } from "@/lib/scanner-analysis";
 import type { RankedScannerCandidate } from "@/lib/scanner-scoring";
 import {
   normalizeReportEmail,
+  type ScannerCampaignTag,
   type ScannerCompletedReport,
   type ScannerReportCompletionInput,
   type ScannerReportForAdmin,
@@ -32,7 +33,7 @@ type ScannerReportDocument = {
   report?: ScannerReportCopy;
   baseScore?: number;
   potentialScore?: number;
-  campaign?: { source: string };
+  campaign?: ScannerCampaignTag;
   revoked?: boolean;
   telemetryEvents?: Record<string, Date>;
 };

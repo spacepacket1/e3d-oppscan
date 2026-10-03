@@ -213,6 +213,53 @@ describe("generateLiteScannerAnalysis", () => {
     expect(candidateUserMessage).toContain('"maintenancePlanOrMembership":false');
   });
 
+  it("passes the stack context to both calls, citing only the static native-AI text", async () => {
+    const ranked = rankScannerCandidates(candidates).slice(0, LITE_OPPORTUNITY_COUNT);
+    const requests: Array<{ messages: Array<{ content: string }> }> = [];
+
+    await generateLiteScannerAnalysis("scan_lite_stack", profile, {
+      transport: async (request) => {
+        requests.push(request);
+        return requests.length === 1
+          ? JSON.stringify({ candidates, maturity: validMaturity })
+          : JSON.stringify(liteReportFor(ranked.map((candidate) => candidate.id)));
+      },
+      timeoutMs: 100,
+      leadContext: {
+        toolsUsed: ["jobber"],
+        detected: { platform: null, onlineBooking: true, chatWidget: false },
+        primaryPlatform: "jobber",
+        fit: { tier: "strong", reasons: ["x"] },
+      },
+    });
+
+    for (const request of requests) {
+      const user = request.messages[1].content;
+      expect(user).toContain("<STACK_CONTEXT>");
+      expect(user).toContain('"platform":"jobber"');
+      expect(user).toContain("Jobber's Copilot assistant");
+      // Fit is internal-only and must never reach the model.
+      expect(user).not.toContain("strong");
+    }
+    expect(requests[1].messages[0].content).toContain("FutCo gets the result");
+    expect(requests[1].messages[0].content).not.toContain("IteraWorks");
+  });
+
+  it("omits the stack block when no lead context is supplied", async () => {
+    const ranked = rankScannerCandidates(candidates).slice(0, LITE_OPPORTUNITY_COUNT);
+    const requests: Array<{ messages: Array<{ content: string }> }> = [];
+    await generateLiteScannerAnalysis("scan_lite_nostack", profile, {
+      transport: async (request) => {
+        requests.push(request);
+        return requests.length === 1
+          ? JSON.stringify({ candidates, maturity: validMaturity })
+          : JSON.stringify(liteReportFor(ranked.map((candidate) => candidate.id)));
+      },
+      timeoutMs: 100,
+    });
+    expect(requests[0].messages[1].content).not.toContain("<STACK_CONTEXT>");
+  });
+
   it("rejects a report with the wrong opportunity count", async () => {
     const ranked = rankScannerCandidates(candidates).slice(0, LITE_OPPORTUNITY_COUNT);
     await expect(

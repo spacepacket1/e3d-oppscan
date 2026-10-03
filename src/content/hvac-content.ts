@@ -57,6 +57,9 @@ export const hvacLiteContent = {
     submitLabel: "Get my free report",
     pendingLabel: "Reviewing your site...",
     emailNotice: "We'll use this email only to deliver your report.",
+    toolsSummary: "Which software do you use today? (optional)",
+    toolsHelp:
+      "Optional. Tick whatever you use for scheduling and dispatch and we'll tailor the report to it.",
     consentLabel:
       "Send me occasional ideas and future communications from FutCo about improving my business with simple AI solutions. I can unsubscribe at any time.",
   },

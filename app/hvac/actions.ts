@@ -10,7 +10,9 @@ import {
   generateLiteScannerAnalysis,
 } from "@/lib/scanner-lite-analysis";
 import { deliverScannerLiteSubmission } from "@/lib/scanner-lite-delivery";
+import { buildHvacLeadContext } from "@/lib/hvac-fit";
 import { detectHvacSiteSignals } from "@/lib/scanner-lite-site-signals";
+import { detectHvacStack } from "@/lib/scanner-lite-stack";
 import {
   hvacLiteErrorState,
   hvacLiteIntakeValuesFromFormData,
@@ -156,6 +158,7 @@ export async function orchestrateHvacLiteIntake(
     marketingOptIn: values.marketingOptIn,
     reportUrl: getCanonicalUrl(buildReportUrl(completed.scanId)),
     campaign: HVAC_LITE_CAMPAIGN_SOURCE,
+    leadContext: completed.campaign?.leadContext,
   });
   if (!deliveryResult.ok) {
     return hvacLiteErrorState(values, { form: deliveryResult.message });
@@ -213,10 +216,16 @@ async function generateAndComplete(
     // concurrently. Signal detection never throws (see
     // scanner-lite-site-signals.ts) -- a fetch failure there just yields
     // all-false signals, it never blocks or fails the submission.
-    const [profile, signals] = await Promise.all([
+    const [profile, signals, detectedStack] = await Promise.all([
       fetchHvacLiteCompanyProfile(values.companyWebsite, { ipHash }),
       detectHvacSiteSignals(values.companyWebsite),
+      detectHvacStack(values.companyWebsite),
     ]);
+    const leadContext = buildHvacLeadContext(
+      profile,
+      values.toolsUsed,
+      detectedStack,
+    );
 
     await claimAndEmitScannerTelemetry(
       store,
@@ -229,7 +238,10 @@ async function generateAndComplete(
     );
     analysisStarted = true;
 
-    const analysis = await generateLiteScannerAnalysis(scanId, profile, { signals });
+    const analysis = await generateLiteScannerAnalysis(scanId, profile, {
+      signals,
+      leadContext,
+    });
     const token = deriveReportAccessToken(scanId);
     const completed = await store.completeReport(
       scanId,
@@ -238,7 +250,7 @@ async function generateAndComplete(
         ...analysis,
         checkoutEmail: values.workEmail,
         companyName: profile.companyName,
-        campaign: { source: HVAC_LITE_CAMPAIGN_SOURCE },
+        campaign: { source: HVAC_LITE_CAMPAIGN_SOURCE, leadContext },
       },
       hashReportAccessToken(token),
       now().toISOString(),

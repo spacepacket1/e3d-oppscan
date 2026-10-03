@@ -1825,6 +1825,15 @@ button {
   accent-color: var(--blue-600);
 }
 
+.contact-form__consent.contact-form__tool {
+  align-items: center;
+}
+
+.contact-form__tool input,
+.contact-form__tool label {
+  margin: 0;
+}
+
 .contact-form button[disabled] {
   cursor: wait;
   opacity: 0.72;
