@@ -10,6 +10,8 @@ import type { RankedScannerCandidate } from "@/lib/scanner-scoring";
 import {
   normalizeReportEmail,
   type ScannerCampaignTag,
+  type ScannerReportFeedCursor,
+  type ScannerReportFeedSummary,
   type ScannerCompletedReport,
   type ScannerReportCompletionInput,
   type ScannerReportForAdmin,
@@ -109,6 +111,42 @@ export class MongoScannerReportStore implements ScannerReportStore {
       })
       .toArray();
     return documents.map(completedReportFromDocument);
+  }
+
+  async listCompletedSummariesAfter(
+    after: ScannerReportFeedCursor | null,
+    limit: number,
+  ): Promise<ScannerReportFeedSummary[]> {
+    const collection = await this.getCollection();
+    const filter: Filter<ScannerReportDocument> = { completed: true };
+    if (after) {
+      const afterDate = new Date(after.completedAt);
+      filter.$or = [
+        { completedAt: { $gt: afterDate } },
+        { completedAt: afterDate, _id: { $gt: after.scanId } },
+      ];
+    }
+    // Projection keeps the checkout email, report body and token hash out of
+    // memory entirely -- the feed only ever needs these four fields.
+    const documents = await collection
+      .find(filter, {
+        projection: { completedAt: 1, companyName: 1, campaign: 1, revoked: 1 },
+      })
+      .sort({ completedAt: 1, _id: 1 })
+      .limit(limit)
+      .toArray();
+    const summaries: ScannerReportFeedSummary[] = [];
+    for (const document of documents) {
+      if (!document.completedAt) continue;
+      summaries.push({
+        scanId: document._id,
+        completedAt: document.completedAt.toISOString(),
+        companyName: document.companyName ?? null,
+        ...(document.campaign ? { campaign: document.campaign } : {}),
+        revoked: document.revoked === true,
+      });
+    }
+    return summaries;
   }
 
   async listAllReportsForAdmin(): Promise<ScannerReportForAdmin[]> {

@@ -72,6 +72,23 @@ export type ScannerReportForAdmin = Omit<
   potentialScore: number | null;
 };
 
+// The narrow slice of a completed report that the read-only ops feed exposes
+// (see app/api/ops/events/route.ts). Deliberately excludes the checkout
+// email, the report body, and the access-token hash.
+export type ScannerReportFeedSummary = {
+  scanId: string;
+  completedAt: string;
+  companyName: string | null;
+  campaign?: ScannerCampaignTag;
+  revoked: boolean;
+};
+
+// Stable pagination position: completion time, with scanId breaking ties.
+export type ScannerReportFeedCursor = {
+  completedAt: string;
+  scanId: string;
+};
+
 export interface ScannerReportStore {
   getByScanId(scanId: string): Promise<ScannerCompletedReport | null>;
   getByTokenHash(tokenHash: string): Promise<ScannerCompletedReport | null>;
@@ -106,6 +123,13 @@ export interface ScannerReportStore {
   // `revoked` exposed so the admin UI can show and toggle it), unlike every
   // other read path in this interface.
   listAllReportsForAdmin(): Promise<ScannerReportForAdmin[]>;
+  // Oldest-first page of completed reports strictly after `after` (or from
+  // the start when null), for the read-only ops feed. Includes revoked
+  // reports (flagged), since a revoked link is still a lead.
+  listCompletedSummariesAfter(
+    after: ScannerReportFeedCursor | null,
+    limit: number,
+  ): Promise<ScannerReportFeedSummary[]>;
   // Permanent, unlike setReportRevoked -- removes the record entirely
   // rather than just blocking the link. Admin-only.
   deleteReport(scanId: string): Promise<void>;
@@ -309,6 +333,34 @@ export class InMemoryScannerReportStore implements ScannerReportStore {
       }
     }
     return results;
+  }
+  async listCompletedSummariesAfter(
+    after: ScannerReportFeedCursor | null,
+    limit: number,
+  ) {
+    const summaries: ScannerReportFeedSummary[] = [];
+    for (const [scanId, entry] of this.records.entries()) {
+      if (!entry.completed) continue;
+      summaries.push({
+        scanId,
+        completedAt: entry.completed.completedAt,
+        companyName: entry.completed.companyName ?? null,
+        ...(entry.completed.campaign ? { campaign: entry.completed.campaign } : {}),
+        revoked: Boolean(entry.revoked),
+      });
+    }
+    return summaries
+      .filter(
+        (summary) =>
+          !after ||
+          summary.completedAt > after.completedAt ||
+          (summary.completedAt === after.completedAt && summary.scanId > after.scanId),
+      )
+      .sort(
+        (a, b) =>
+          a.completedAt.localeCompare(b.completedAt) || a.scanId.localeCompare(b.scanId),
+      )
+      .slice(0, limit);
   }
   async listAllReportsForAdmin() {
     const results: ScannerReportForAdmin[] = [];
