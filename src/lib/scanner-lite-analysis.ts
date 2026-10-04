@@ -31,7 +31,7 @@ import { HVAC_PLATFORM_CAPABILITIES } from "@/lib/hvac-platform-capabilities";
 import type { HvacLeadContext } from "@/lib/hvac-fit";
 import { emptyHvacSiteSignals, type HvacSiteSignals } from "@/lib/scanner-lite-site-signals";
 
-// HVAC Lite writes up exactly this many opportunities -- matches Chapple's
+// HVAC Lite writes up exactly this many opportunities -- matches the partner's
 // "at least four practical opportunities" spec and keeps the emailed report
 // short and skimmable rather than the paid report's 5-10.
 export const LITE_OPPORTUNITY_COUNT = 4;
@@ -142,7 +142,7 @@ function readDraftField(
 // than the generic-service-business patterns (intake, message drafting,
 // routing) the shared CANDIDATE_SCHEMA_INSTRUCTIONS alone tends to produce.
 // The categories deliberately line up with what FutCo actually sells
-// on the follow-up call (per Chapple's spec: comms/follow-up automation,
+// on the follow-up call (per the partner's spec: comms/follow-up automation,
 // reactivating old customer lists, review/reputation management, turning
 // the website into a lead generator) so the free report sets up that pitch
 // instead of wandering into unrelated ops territory. Only affects the HVAC
@@ -165,14 +165,14 @@ const HVAC_CANDIDATE_FOCUS_INSTRUCTIONS =
   "A <STACK_CONTEXT> block may follow with the business's field-service software (platform), tools the owner reported, whether online booking or a chat widget was detected, and platformNativeAi -- a fixed description of what that platform already does natively. When platformNativeAi is present, treat using that built-in capability as the first, simplest option for the matching opportunity (call answering, booking, reporting) and focus the remaining opportunities on gaps a single platform does not cover: estimate follow-up, reactivating old customers, cross-system follow-up, review requests. Never describe any vendor feature beyond what platformNativeAi states, and never assume software the block does not name. " +
   "When a review-related opportunity is plausible, never suggest selectively soliciting reviews only from satisfied customers or discouraging/filtering negative ones -- describe sending the same neutral review invitation to every eligible customer, with negative feedback separately routed to staff for private service recovery rather than withheld from the public review flow.";
 
-// Rewritten per Chapple's spec (2026-09-26 "Oppscan Lead Magnet" +
+// Rewritten per the partner's spec (2026-09-26 "Oppscan Lead Magnet" +
 // 2026-09-29 "Full Spec chat" emails, discussed 2026-09-30): this report is
 // meant to be a forwardable business case a dispatcher or ops lead can send
 // to an owner/GM/budget holder, not an AI-capability writeup. Automation is
 // the "how", never the headline "what" -- every field below is written to
 // keep AI language out of the parts a reader actually sees, and the
 // numeric 1-5 candidate ratings stay off screen entirely (they still drive
-// ranking -- see rankScannerCandidates -- but Chapple was explicit that
+// ranking -- see rankScannerCandidates -- but the partner was explicit that
 // "why is this a 400?" doesn't help the sale).
 const LITE_REPORT_SCHEMA_INSTRUCTIONS =
   'Return one object containing exactly: "reportTitle", "preparedForNote", "whatWeObserved", "executiveSummary", "recommendedStartingPoint", "opportunities", "consultationPreparation", and "closingNote". ' +

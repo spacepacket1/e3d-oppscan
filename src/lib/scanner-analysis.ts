@@ -17,7 +17,7 @@ import {
 
 // HVAC Lite's business-oriented financial/impact labels, replacing the
 // numeric 1-5 ratings on screen (those keep driving ranking behind the
-// scenes -- see scanner-scoring.ts -- but Chapple's spec is explicit that
+// scenes -- see scanner-scoring.ts -- but the partner's spec is explicit that
 // unexplained numbers like "400" don't help an executive reader).
 export type HvacOpportunityFinancialLever =
   | "revenue"

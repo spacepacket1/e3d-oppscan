@@ -13,7 +13,7 @@ export const hvacLiteContent = {
     description:
       "See where faster response and follow-up could mean more booked work for your HVAC business. Get a free custom report in minutes.",
   },
-  // Per Chapple's spec (2026-09-26 + 2026-09-29 emails, discussed 2026-09-30):
+  // Per the partner's spec (2026-09-26 + 2026-09-29 emails, discussed 2026-09-30):
   // automation/AI is how FutCo gets the result, never the thing being
   // sold. This copy -- both the landing page and the report -- leads with
   // booked work, response speed, and customer experience, and mentions
@@ -22,7 +22,7 @@ export const hvacLiteContent = {
     "FutCo helps local service companies capture more of the demand they already generate by improving response, estimate follow-up, customer communication, and administrative workflows using the systems they already have.",
   report: {
     // Static replacement for the old on-screen AI Base/Potential Score
-    // panel -- Chapple was explicit that unexplained numbers like "400"
+    // panel -- the partner was explicit that unexplained numbers like "400"
     // don't help an executive reader. The real ranking still happens
     // behind the scenes (see rankScannerCandidates).
     opportunitiesIntroHeading: "Potential opportunities identified",

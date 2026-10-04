@@ -35,7 +35,7 @@ const EASE_LABELS: Record<HvacOpportunityEase, string> = {
 };
 
 // The HVAC Lite report is a distinct, business-case-first structure per
-// Chapple's spec (2026-09-26 + 2026-09-29 emails) -- forwardable to an
+// the partner's spec (2026-09-26 + 2026-09-29 emails) -- forwardable to an
 // owner/GM/budget holder, not an AI-capability writeup -- so it gets its
 // own component rather than more conditionals bolted onto ScannerReport,
 // which stays exactly as the paid flow needs it.
