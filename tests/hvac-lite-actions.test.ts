@@ -171,6 +171,97 @@ describe("submitHvacLiteIntake", () => {
     vi.unstubAllEnvs();
   });
 
+  describe("attempt logging", () => {
+    type AttemptLog = {
+      outcome: string;
+      reason?: string;
+      websiteHost: string;
+      emailProvided: boolean;
+      userAgent: string;
+      ipHash: string;
+    };
+
+    function attemptLogs(spy: { mock: { calls: unknown[][] } }): AttemptLog[] {
+      return spy.mock.calls
+        .map(([line]) => String(line))
+        .filter((line: string) => line.includes("hvacLiteAttempt"))
+        .map((line: string) => JSON.parse(line).hvacLiteAttempt as AttemptLog);
+    }
+
+    async function submit(overrides: Parameters<typeof buildFormData>[0] = {}) {
+      return submitHvacLiteIntake(
+        { status: "idle", values: emptyHvacLiteIntakeValues, errors: {} },
+        buildFormData(overrides),
+      );
+    }
+
+    beforeEach(() => {
+      headersMock.mockResolvedValue(
+        new Headers({
+          origin: "https://oppscan.e3d.ai",
+          host: "oppscan.e3d.ai",
+          "x-forwarded-for": "203.0.113.9, 10.0.0.1",
+          "user-agent": "TestBrowser/1.0",
+        }),
+      );
+    });
+
+    it("logs an outcome for each early rejection, with reasons", async () => {
+      const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      securityMocks.isTrustedServerActionOrigin.mockReturnValueOnce(false);
+      await submit();
+      await submit({ website: "filled-by-bot" });
+      rateLimitMocks.isHvacLiteRateLimited.mockReturnValueOnce(true);
+      await submit();
+      await submit({ workEmail: "" });
+      securityMocks.verifyTurnstileToken.mockResolvedValueOnce(false);
+      await submit();
+
+      const logs = attemptLogs(spy);
+      expect(logs.map((entry) => entry.outcome)).toEqual([
+        "rejected_origin",
+        "rejected_honeypot",
+        "rejected_rate_limit",
+        "rejected_validation",
+        "rejected_turnstile",
+      ]);
+      expect(logs[3].reason).toBe("workEmail");
+      expect(logs[3].emailProvided).toBe(false);
+      spy.mockRestore();
+    });
+
+    it("logs success, and never logs the email, the raw IP, or the full URL", async () => {
+      const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+      await submit();
+
+      const lines = spy.mock.calls.map(([line]) => String(line)).join("\n");
+      const [entry] = attemptLogs(spy);
+      expect(entry.outcome).toBe("succeeded");
+      expect(entry.websiteHost).toBe("redwoodhvac.example.com");
+      expect(entry.emailProvided).toBe(true);
+      expect(entry.userAgent).toBe("TestBrowser/1.0");
+      expect(entry.ipHash).toMatch(/^[0-9a-f]{12}$/);
+      expect(lines).not.toContain("owner@redwoodhvac.example.com");
+      expect(lines).not.toContain("203.0.113.9");
+      expect(lines).not.toContain("https://redwoodhvac.example.com");
+      spy.mockRestore();
+    });
+
+    it("logs a failed run with its error keys", async () => {
+      const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+      analysisMocks.fetchHvacLiteCompanyProfile.mockRejectedValueOnce(
+        new HvacLiteProfileError("upstream_rejected"),
+      );
+      const result = await submit();
+      expect(result.status).toBe("error");
+      const [entry] = attemptLogs(spy);
+      expect(entry.outcome).toBe("failed");
+      expect(entry.reason).toBe("companyWebsite");
+      spy.mockRestore();
+    });
+  });
+
   it("rejects an untrusted origin without rate-limiting or generating", async () => {
     securityMocks.isTrustedServerActionOrigin.mockReturnValue(false);
     const result = await submitHvacLiteIntake(

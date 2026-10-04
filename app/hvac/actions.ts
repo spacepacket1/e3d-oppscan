@@ -21,6 +21,13 @@ import {
   type HvacLiteFormState,
   type HvacLiteIntakeValues,
 } from "@/lib/scanner-lite-intake";
+import {
+  hashClientIp,
+  logHvacLiteAttempt,
+  summarizeWebsiteHost,
+  trimUserAgent,
+  type HvacLiteAttemptOutcome,
+} from "@/lib/scanner-lite-attempt-log";
 import { isHvacLiteRateLimited } from "@/lib/scanner-lite-rate-limit";
 import {
   isTrustedServerActionOrigin,
@@ -57,7 +64,20 @@ export async function submitHvacLiteIntake(
   const values = hvacLiteIntakeValuesFromFormData(formData);
   const validation = validateHvacLiteIntakeValues(values);
 
+  const logAttempt = (outcome: HvacLiteAttemptOutcome, reason?: string) =>
+    logHvacLiteAttempt({
+      outcome,
+      ...(reason ? { reason } : {}),
+      websiteHost: summarizeWebsiteHost(validation.values.companyWebsite),
+      emailProvided: Boolean(validation.values.workEmail),
+      turnstileTokenProvided: Boolean(validation.values.turnstileToken),
+      toolsSelected: validation.values.toolsUsed.length,
+      ipHash: hashClientIp(clientIp),
+      userAgent: trimUserAgent(requestHeaders.get("user-agent")),
+    });
+
   if (!isTrustedServerActionOrigin(origin, host)) {
+    logAttempt("rejected_origin");
     return hvacLiteErrorState(validation.values, {
       form: "The form session could not be verified. Please reload the page and try again.",
     });
@@ -65,16 +85,19 @@ export async function submitHvacLiteIntake(
 
   // Honeypot: fake success, no LLM call, no delivery.
   if (validation.values.website) {
+    logAttempt("rejected_honeypot");
     return hvacLiteSuccessState(validation.values);
   }
 
   if (isHvacLiteRateLimited(clientIp)) {
+    logAttempt("rejected_rate_limit");
     return hvacLiteErrorState(validation.values, {
       form: "Too many requests. Please try again in a few minutes.",
     });
   }
 
   if (!validation.isValid) {
+    logAttempt("rejected_validation", Object.keys(validation.errors).join(","));
     return hvacLiteErrorState(validation.values, validation.errors);
   }
 
@@ -83,14 +106,22 @@ export async function submitHvacLiteIntake(
     clientIp,
   );
   if (!turnstileOk) {
+    logAttempt("rejected_turnstile");
     return hvacLiteErrorState(validation.values, {
       form: "Bot protection could not be verified. Please try again.",
     });
   }
 
   try {
-    return await orchestrateHvacLiteIntake(validation.values, clientIp);
+    const result = await orchestrateHvacLiteIntake(validation.values, clientIp);
+    if (result.status === "success") {
+      logAttempt("succeeded");
+    } else {
+      logAttempt("failed", Object.keys(result.errors).join(",") || "unknown");
+    }
+    return result;
   } catch {
+    logAttempt("failed", "exception");
     return hvacLiteErrorState(validation.values, {
       form: "Your free report could not be prepared right now. Please try again.",
     });
