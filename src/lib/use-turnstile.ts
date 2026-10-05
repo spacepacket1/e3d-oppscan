@@ -10,9 +10,11 @@ import { mountTurnstileWidget, resetTurnstileWidget } from "@/lib/turnstile-widg
 // Because the check is invisible, a visitor can tap submit before it has
 // finished. `ready` lets the form hold its button briefly ("Getting ready...")
 // instead of submitting with no token. It never strands anyone: if the check
-// errors, the script is blocked, or it is simply slow (see READY_FALLBACK_MS),
-// the button is enabled anyway and the server rejects a missing token with the
-// usual message.
+// errors or the script is blocked, the button is enabled and the usual message
+// shows. If it is merely slow or silently stuck (some in-app browsers handle
+// invisible checks poorly), then after READY_FALLBACK_MS the widget is
+// re-rendered in "always" mode, so the visitor gets the visible checkbox -- the
+// worst case is the old behaviour, never a dead end.
 const READY_FALLBACK_MS = 8000;
 
 export function useTurnstile(widgetId: string, siteKey: string) {
@@ -20,21 +22,19 @@ export function useTurnstile(widgetId: string, siteKey: string) {
   const [failed, setFailed] = useState(false);
   const [scriptBlocked, setScriptBlocked] = useState(false);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const nodeRef = useRef<HTMLDivElement | null>(null);
+  const showedVisibleRef = useRef(false);
 
-  // Explicit rendering, triggered by a ref callback that fires exactly when the
-  // container is attached (see turnstile-widget.ts for why).
-  const containerRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      cleanupRef.current?.();
-      cleanupRef.current = null;
+  const mount = useCallback(
+    (appearance: "interaction-only" | "always") => {
+      const node = nodeRef.current;
       if (!node || !siteKey) return;
-      setFailed(false);
-      setScriptBlocked(false);
+      cleanupRef.current?.();
       cleanupRef.current = mountTurnstileWidget(
         node,
         {
           sitekey: siteKey,
-          appearance: "interaction-only",
+          appearance,
           callback: () => {
             setFailed(false);
             setReady(true);
@@ -51,11 +51,37 @@ export function useTurnstile(widgetId: string, siteKey: string) {
     [siteKey],
   );
 
+  // Explicit rendering, triggered by a ref callback that fires exactly when the
+  // container is attached (see turnstile-widget.ts for why).
+  const containerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      cleanupRef.current?.();
+      cleanupRef.current = null;
+      nodeRef.current = node;
+      if (!node || !siteKey) return;
+      setFailed(false);
+      setScriptBlocked(false);
+      mount("interaction-only");
+    },
+    [siteKey, mount],
+  );
+
   useEffect(() => {
     if (!siteKey || ready) return;
-    const timer = window.setTimeout(() => setReady(true), READY_FALLBACK_MS);
+    const timer = window.setTimeout(() => {
+      // Still no token: release the button, and make the check visible once so
+      // the visitor can complete it by hand.
+      setReady(true);
+      // Only worth re-rendering if the script actually loaded; if it never did,
+      // the original mount reports "script blocked" on its own shortly.
+      const scriptLoaded = Boolean((window as unknown as { turnstile?: unknown }).turnstile);
+      if (scriptLoaded && !showedVisibleRef.current) {
+        showedVisibleRef.current = true;
+        mount("always");
+      }
+    }, READY_FALLBACK_MS);
     return () => window.clearTimeout(timer);
-  }, [siteKey, ready]);
+  }, [siteKey, ready, mount]);
 
   const reset = useCallback(() => resetTurnstileWidget(widgetId), [widgetId]);
 

@@ -85,14 +85,28 @@ describe("useTurnstile", () => {
     expect(result.current.failed).toBe(false);
   });
 
-  it("releases the button after a slow check instead of waiting forever", () => {
+  it("releases the button after a slow check, and re-renders the widget visibly as a backstop", () => {
     installTurnstile();
     const { result } = mount("site-key");
+    expect(captured?.appearance).toBe("interaction-only");
     expect(result.current.checking).toBe(true);
     act(() => {
       vi.advanceTimersByTime(8001);
     });
     expect(result.current.checking).toBe(false);
+    expect(removeSpy).toHaveBeenCalledOnce();
+    expect(captured?.appearance).toBe("always");
+  });
+
+  it("does not re-render the widget when the invisible check finished in time", () => {
+    installTurnstile();
+    mount("site-key");
+    act(() => captured?.callback?.("token"));
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(captured?.appearance).toBe("interaction-only");
+    expect(removeSpy).not.toHaveBeenCalled();
   });
 
   it("reports a blocked script and releases the button", () => {
