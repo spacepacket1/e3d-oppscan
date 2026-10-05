@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const headersMock = vi.hoisted(() => vi.fn());
+// next/server's after() only works inside a real request; capture its
+// callbacks so each test can run the "background" work when it chooses.
+const afterCallbacks = vi.hoisted(() => [] as Array<() => unknown>);
 const securityMocks = vi.hoisted(() => ({
   isTrustedServerActionOrigin: vi.fn(),
   verifyTurnstileToken: vi.fn(),
@@ -23,6 +26,14 @@ const siteSignalsMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("next/headers", () => ({ headers: headersMock }));
+vi.mock("next/server", async () => {
+  const actual = await vi.importActual<typeof import("next/server")>("next/server");
+  return { ...actual, after: (callback: () => unknown) => void afterCallbacks.push(callback) };
+});
+
+async function flushAfter() {
+  while (afterCallbacks.length) await afterCallbacks.shift()!();
+}
 
 vi.mock("@/lib/contact-security", async () => {
   const actual = await vi.importActual<typeof import("@/lib/contact-security")>(
@@ -167,6 +178,7 @@ describe("submitHvacLiteIntake", () => {
   });
 
   afterEach(() => {
+    afterCallbacks.length = 0;
     vi.clearAllMocks();
     vi.unstubAllEnvs();
   });
@@ -179,6 +191,8 @@ describe("submitHvacLiteIntake", () => {
       emailProvided: boolean;
       userAgent: string;
       ipHash: string;
+      attemptId: string;
+      uaFlags: string[];
     };
 
     function attemptLogs(spy: { mock: { calls: unknown[][] } }): AttemptLog[] {
@@ -231,13 +245,31 @@ describe("submitHvacLiteIntake", () => {
       spy.mockRestore();
     });
 
-    it("logs success, and never logs the email, the raw IP, or the full URL", async () => {
+    it("answers immediately with an accepted line, then logs the background result under the same attempt id", async () => {
+      const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const result = await submit();
+
+      // Success is returned before any generation or delivery has run.
+      expect(result.status).toBe("success");
+      expect(analysisMocks.fetchHvacLiteCompanyProfile).not.toHaveBeenCalled();
+      expect(deliveryMocks.deliverScannerLiteSubmission).not.toHaveBeenCalled();
+      expect(attemptLogs(spy).map((entry) => entry.outcome)).toEqual(["accepted"]);
+
+      await flushAfter();
+      const logs = attemptLogs(spy);
+      expect(logs.map((entry) => entry.outcome)).toEqual(["accepted", "succeeded"]);
+      expect(logs[1].attemptId).toBe(logs[0].attemptId);
+      expect(deliveryMocks.deliverScannerLiteSubmission).toHaveBeenCalledOnce();
+      spy.mockRestore();
+    });
+
+    it("never logs the email, the raw IP, or the full URL", async () => {
       const spy = vi.spyOn(console, "log").mockImplementation(() => {});
       await submit();
+      await flushAfter();
 
       const lines = spy.mock.calls.map(([line]) => String(line)).join("\n");
       const [entry] = attemptLogs(spy);
-      expect(entry.outcome).toBe("succeeded");
       expect(entry.websiteHost).toBe("redwoodhvac.example.com");
       expect(entry.emailProvided).toBe(true);
       expect(entry.userAgent).toBe("TestBrowser/1.0");
@@ -248,16 +280,40 @@ describe("submitHvacLiteIntake", () => {
       spy.mockRestore();
     });
 
-    it("logs a failed run with its error keys", async () => {
+    it("flags in-app browsers using the full user agent, even past the trim length", async () => {
       const spy = vi.spyOn(console, "log").mockImplementation(() => {});
-      analysisMocks.fetchHvacLiteCompanyProfile.mockRejectedValueOnce(
+      const longIosFacebookUa =
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/470.0.0.0.0;FBDV/iPhone15,2]";
+      headersMock.mockResolvedValue(
+        new Headers({
+          origin: "https://oppscan.e3d.ai",
+          host: "oppscan.e3d.ai",
+          "x-forwarded-for": "203.0.113.9",
+          "user-agent": longIosFacebookUa,
+        }),
+      );
+      await submit();
+      const [entry] = attemptLogs(spy);
+      expect(longIosFacebookUa.length).toBeGreaterThan(100);
+      expect(entry.userAgent).toHaveLength(100);
+      expect(entry.userAgent).not.toContain("FBAN");
+      expect(entry.uaFlags).toEqual(expect.arrayContaining(["facebook_inapp", "mobile"]));
+      spy.mockRestore();
+    });
+
+    it("logs a background failure with its error keys when the site cannot be analyzed", async () => {
+      const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+      analysisMocks.fetchHvacLiteCompanyProfile.mockRejectedValue(
         new HvacLiteProfileError("upstream_rejected"),
       );
       const result = await submit();
-      expect(result.status).toBe("error");
-      const [entry] = attemptLogs(spy);
-      expect(entry.outcome).toBe("failed");
-      expect(entry.reason).toBe("companyWebsite");
+      expect(result.status).toBe("success");
+      await flushAfter();
+      const logs = attemptLogs(spy);
+      expect(logs.map((entry) => entry.outcome)).toEqual(["accepted", "failed"]);
+      expect(logs[1].reason).toBe("companyWebsite");
+      // A bad URL is not retried.
+      expect(analysisMocks.fetchHvacLiteCompanyProfile).toHaveBeenCalledOnce();
       spy.mockRestore();
     });
   });
@@ -316,12 +372,14 @@ describe("submitHvacLiteIntake", () => {
     expect(analysisMocks.fetchHvacLiteCompanyProfile).not.toHaveBeenCalled();
   });
 
-  it("succeeds end to end: analyzes, completes the report, and delivers the webhook", async () => {
+  it("succeeds end to end: answers at once, then analyzes, completes the report, and delivers the webhook in the background", async () => {
     const result = await submitHvacLiteIntake(
       { status: "idle", values: emptyHvacLiteIntakeValues, errors: {} },
       buildFormData(),
     );
     expect(result.status).toBe("success");
+    expect(analysisMocks.fetchHvacLiteCompanyProfile).not.toHaveBeenCalled();
+    await flushAfter();
     expect(analysisMocks.fetchHvacLiteCompanyProfile).toHaveBeenCalledOnce();
     expect(analysisMocks.generateLiteScannerAnalysis).toHaveBeenCalledOnce();
     expect(deliveryMocks.deliverScannerLiteSubmission).toHaveBeenCalledWith(

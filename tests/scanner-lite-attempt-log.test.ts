@@ -41,3 +41,23 @@ describe("trimUserAgent", () => {
     expect(trimUserAgent(null)).toBe("");
   });
 });
+
+import { classifyUserAgent } from "@/lib/scanner-lite-attempt-log";
+
+describe("classifyUserAgent", () => {
+  it("flags Facebook and Instagram in-app browsers", () => {
+    expect(
+      classifyUserAgent("Mozilla/5.0 (iPhone) Mobile/15E148 [FBAN/FBIOS;FBAV/470.0]"),
+    ).toEqual(expect.arrayContaining(["facebook_inapp", "mobile"]));
+    expect(classifyUserAgent("Mozilla/5.0 (Linux; Android 14) Instagram 330.0")).toEqual(
+      expect.arrayContaining(["instagram_inapp", "mobile"]),
+    );
+  });
+
+  it("flags headless and bot-like agents, and leaves a normal desktop browser unflagged", () => {
+    expect(classifyUserAgent("Mozilla/5.0 HeadlessChrome/148.0")).toContain("headless");
+    expect(classifyUserAgent("curl/7.81.0")).toContain("bot_like");
+    expect(classifyUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X) Chrome/144.0 Safari/537.36")).toEqual([]);
+    expect(classifyUserAgent(null)).toEqual([]);
+  });
+});

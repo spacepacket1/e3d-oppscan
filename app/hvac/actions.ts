@@ -1,6 +1,7 @@
 "use server";
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { after } from "next/server";
 import { headers } from "next/headers";
 
 import { ScannerAnalysisError } from "@/lib/scanner-analysis";
@@ -22,12 +23,14 @@ import {
   type HvacLiteIntakeValues,
 } from "@/lib/scanner-lite-intake";
 import {
+  classifyUserAgent,
   hashClientIp,
   logHvacLiteAttempt,
   summarizeWebsiteHost,
   trimUserAgent,
   type HvacLiteAttemptOutcome,
 } from "@/lib/scanner-lite-attempt-log";
+import { runHvacLiteBackground } from "@/lib/scanner-lite-background";
 import { isHvacLiteRateLimited } from "@/lib/scanner-lite-rate-limit";
 import {
   isTrustedServerActionOrigin,
@@ -64,16 +67,25 @@ export async function submitHvacLiteIntake(
   const values = hvacLiteIntakeValuesFromFormData(formData);
   const validation = validateHvacLiteIntakeValues(values);
 
+  // Everything the log line needs is captured now: the request headers are
+  // not available once the work moves into the background.
+  const attemptId = randomUUID().slice(0, 8);
+  const rawUserAgent = requestHeaders.get("user-agent");
+  const logContext = {
+    attemptId,
+    websiteHost: summarizeWebsiteHost(validation.values.companyWebsite),
+    emailProvided: Boolean(validation.values.workEmail),
+    turnstileTokenProvided: Boolean(validation.values.turnstileToken),
+    toolsSelected: validation.values.toolsUsed.length,
+    ipHash: hashClientIp(clientIp),
+    userAgent: trimUserAgent(rawUserAgent),
+    uaFlags: classifyUserAgent(rawUserAgent),
+  };
   const logAttempt = (outcome: HvacLiteAttemptOutcome, reason?: string) =>
     logHvacLiteAttempt({
+      ...logContext,
       outcome,
       ...(reason ? { reason } : {}),
-      websiteHost: summarizeWebsiteHost(validation.values.companyWebsite),
-      emailProvided: Boolean(validation.values.workEmail),
-      turnstileTokenProvided: Boolean(validation.values.turnstileToken),
-      toolsSelected: validation.values.toolsUsed.length,
-      ipHash: hashClientIp(clientIp),
-      userAgent: trimUserAgent(requestHeaders.get("user-agent")),
     });
 
   if (!isTrustedServerActionOrigin(origin, host)) {
@@ -112,20 +124,18 @@ export async function submitHvacLiteIntake(
     });
   }
 
-  try {
-    const result = await orchestrateHvacLiteIntake(validation.values, clientIp);
-    if (result.status === "success") {
-      logAttempt("succeeded");
-    } else {
-      logAttempt("failed", Object.keys(result.errors).join(",") || "unknown");
-    }
-    return result;
-  } catch {
-    logAttempt("failed", "exception");
-    return hvacLiteErrorState(validation.values, {
-      form: "Your free report could not be prepared right now. Please try again.",
-    });
-  }
+  // The visitor has passed every check a human could fix, so answer now and do
+  // the slow part (site analysis, two LLM calls, delivery -- about a minute)
+  // after the response. The report is emailed when it is ready.
+  logAttempt("accepted");
+  const acceptedValues = validation.values;
+  after(() =>
+    runHvacLiteBackground(
+      () => orchestrateHvacLiteIntake(acceptedValues, clientIp),
+      (outcome, reason) => logAttempt(outcome, reason),
+    ),
+  );
+  return hvacLiteSuccessState(acceptedValues);
 }
 
 type OrchestrationOptions = {
