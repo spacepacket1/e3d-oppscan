@@ -25,25 +25,30 @@ export const FREE_INTAKE_FIELDS: {
   rows?: number;
   maxLength: number;
   help?: string;
+  // Only the website is required. Everything else is optional detail that
+  // sharpens the summary; the server drafts or defaults whatever is blank.
+  required: boolean;
 }[] = [
   {
     key: "companyWebsite",
     label: "Company website",
     input: "url",
     maxLength: 200,
-    help: "Analyze it to draft the company name, industry, and description below.",
+    required: true,
   },
   {
     key: "companyName",
     label: "Company name",
     input: "text",
     maxLength: 160,
+    required: false,
   },
   {
     key: "industry",
     label: "Industry",
     input: "text",
     maxLength: 120,
+    required: false,
   },
   {
     key: "companyDescription",
@@ -51,12 +56,14 @@ export const FREE_INTAKE_FIELDS: {
     input: "textarea",
     rows: 4,
     maxLength: 1200,
+    required: false,
   },
   {
     key: "goalPrimary",
     label: "Top business goal right now",
     input: "text",
     maxLength: 220,
+    required: false,
   },
   {
     key: "timeConsumingWorkflows",
@@ -64,6 +71,7 @@ export const FREE_INTAKE_FIELDS: {
     input: "textarea",
     rows: 4,
     maxLength: 1200,
+    required: false,
   },
   {
     key: "currentAiUse",
@@ -71,6 +79,7 @@ export const FREE_INTAKE_FIELDS: {
     input: "textarea",
     rows: 3,
     maxLength: 800,
+    required: false,
   },
 ];
 
@@ -205,7 +214,7 @@ export function validateFreeScannerIntakeValues(
 
   for (const field of FREE_INTAKE_FIELDS) {
     if (!sanitized[field.key]) {
-      errors[field.key] = requiredFieldMessages[field.key];
+      if (field.required) errors[field.key] = requiredFieldMessages[field.key];
     } else if (sanitized[field.key].length > field.maxLength) {
       errors[field.key] = `Keep this response under ${field.maxLength} characters.`;
     }
@@ -219,6 +228,49 @@ export function validateFreeScannerIntakeValues(
     values: sanitized,
     errors,
     isValid: Object.keys(errors).length === 0,
+  };
+}
+
+// What the analysis is told when the visitor skipped the optional questions.
+// Plain statements, so the model infers from the site instead of treating
+// blank answers as "none".
+export const FREE_DEFAULT_GOAL =
+  "Not stated; find the most valuable AI opportunities for this business.";
+export const FREE_DEFAULT_WORKFLOWS =
+  "Not stated; infer likely time-consuming workflows from the business description.";
+export const FREE_DEFAULT_AI_USE = "Not stated.";
+
+export const FREE_PROFILE_UNAVAILABLE_MESSAGE =
+  "We couldn't read that website automatically. Add a sentence about what your business does and try again.";
+
+export type FreeSiteDraft = {
+  companyName: string;
+  industry: string;
+  companyDescription: string;
+};
+
+// Fills the blanks the visitor left, in order: what they typed always wins,
+// then what the site yielded, then a neutral default. The description is the
+// one field the analysis cannot do without, so callers must check it is
+// non-empty afterwards.
+export function completeFreeScannerValues(
+  values: FreeScannerIntakeValues,
+  draft?: FreeSiteDraft | null,
+): FreeScannerIntakeValues {
+  let host = "";
+  try {
+    host = new URL(values.companyWebsite).hostname;
+  } catch {
+    host = "";
+  }
+  return {
+    ...values,
+    companyName: values.companyName || draft?.companyName || host,
+    industry: values.industry || draft?.industry || "Not stated",
+    companyDescription: values.companyDescription || draft?.companyDescription || "",
+    goalPrimary: values.goalPrimary || FREE_DEFAULT_GOAL,
+    timeConsumingWorkflows: values.timeConsumingWorkflows || FREE_DEFAULT_WORKFLOWS,
+    currentAiUse: values.currentAiUse || FREE_DEFAULT_AI_USE,
   };
 }
 

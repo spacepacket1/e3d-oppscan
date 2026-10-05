@@ -8,9 +8,7 @@ import { FUTCO_META_PIXEL_ID, ensureMetaPixel, trackMetaPixelEvent } from "@/lib
 
 import {
   FREE_INTAKE_FIELDS,
-  mergeFreeScannerIntakeDraft,
   type FreeScannerFormState,
-  type FreeScannerIntakeDraft,
   type FreeScannerIntakeFieldKey,
   type FreeScannerIntakeValues,
 } from "@/lib/scanner-free-intake";
@@ -19,6 +17,10 @@ import type { FreeLeadFormState } from "@/lib/scanner-free-lead";
 import { mountTurnstileWidget, resetTurnstileWidget } from "@/lib/turnstile-widget";
 
 const TURNSTILE_WIDGET_ID = "free-scanner-turnstile";
+
+const OPTIONAL_FIELD_KEYS: FreeScannerIntakeFieldKey[] = FREE_INTAKE_FIELDS.filter(
+  (field) => !field.required,
+).map((field) => field.key);
 
 type FreeScannerFormProps = {
   action: (
@@ -34,27 +36,6 @@ type FreeScannerFormProps = {
   turnstileSiteKey?: string;
 };
 
-type PrefillStatus = "idle" | "analyzing" | "done" | "failed";
-
-type PrefillResponse =
-  | { ok: true; draft: FreeScannerIntakeDraft }
-  | { ok: false; reason: string };
-
-// Plain-language reason a site could not be pre-filled. None of these block
-// the free summary -- the visitor can always describe their business by hand.
-function prefillFailureMessage(reason: string) {
-  switch (reason) {
-    case "fetch_failed":
-    case "blocked_host":
-    case "not_html":
-      return "That site doesn't let automated tools read it, so we couldn't pre-fill. Just describe your business below — it takes about a minute.";
-    case "timeout":
-      return "That site took too long to respond, so we couldn't pre-fill. Just describe your business below — it takes about a minute.";
-    default:
-      return "We couldn't pre-fill from that site. Just describe your business below — it takes about a minute.";
-  }
-}
-
 export function FreeScannerForm({
   action,
   initialState,
@@ -63,9 +44,11 @@ export function FreeScannerForm({
 }: FreeScannerFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [values, setValues] = useState<FreeScannerIntakeValues>(state.values);
-  const [prefillState, setPrefillState] = useState<PrefillStatus>("idle");
-  const [prefillFailureReason, setPrefillFailureReason] = useState("");
-  const [draftedFields, setDraftedFields] = useState<FreeScannerIntakeFieldKey[]>([]);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  // If the problem is in one of the optional detail fields -- most often
+  // "we couldn't read your site, add a sentence" -- keep the section open so
+  // the message and the field are in view.
+  const hasDetailError = OPTIONAL_FIELD_KEYS.some((key) => state.errors[key]);
   const [turnstileFailed, setTurnstileFailed] = useState(false);
   const [turnstileScriptBlocked, setTurnstileScriptBlocked] = useState(false);
 
@@ -158,114 +141,73 @@ export function FreeScannerForm({
     );
   }
 
-  async function runPrefill() {
-    const website = values.companyWebsite.trim();
-    if (!website) {
-      setPrefillFailureReason("");
-      setPrefillState("failed");
-      return;
-    }
-
-    setPrefillState("analyzing");
-    try {
-      const response = await fetch("/api/free-intake/prefill", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ website }),
-      });
-      const payload = (await response.json()) as PrefillResponse;
-      if (!payload.ok) {
-        setPrefillFailureReason(payload.reason);
-        setPrefillState("failed");
-        return;
-      }
-      const merged = mergeFreeScannerIntakeDraft(values, payload.draft);
-      setValues(merged.values);
-      setDraftedFields(merged.draftedFields);
-      setPrefillState("done");
-    } catch {
-      setPrefillFailureReason("");
-      setPrefillState("failed");
-    }
-  }
-
   return (
     <form action={formAction} className="contact-form" noValidate>
       <div className="contact-form__header">
-        <h2>Business snapshot</h2>
-        <p>Analyze your site to draft a few fields, or just fill them in — takes about a minute either way.</p>
+        <h2>Where could AI help your business?</h2>
+        <p>
+          Enter your website. We&apos;ll read it and show you your top AI opportunities in about
+          a minute — no payment, no account.
+        </p>
       </div>
 
       <Field error={state.errors.companyWebsite} id="companyWebsite" label="Company website">
-        <div className="scanner-intake-prefill">
-          <input
-            id="companyWebsite"
-            maxLength={200}
-            name="companyWebsite"
-            onChange={(event) => {
-              const nextValue = event.currentTarget.value;
-              setValues((current) => ({ ...current, companyWebsite: nextValue }));
-            }}
-            type="url"
-            value={values.companyWebsite}
-          />
-          <div className="scanner-intake-prefill__actions">
-            <button
-              className="button button--secondary button--compact"
-              disabled={prefillState === "analyzing"}
-              onClick={() => void runPrefill()}
-              type="button"
-            >
-              {prefillState === "analyzing" ? "Analyzing..." : "Analyze my site"}
-            </button>
-          </div>
-        </div>
-        {prefillState === "done" && draftedFields.length > 0 ? (
-          <p className="development-note">
-            Drafted {draftedFields.length} field{draftedFields.length === 1 ? "" : "s"} from your
-            site — review and edit below.
-          </p>
-        ) : null}
-        {prefillState === "done" && draftedFields.length === 0 ? (
-          <p className="development-note">
-            We didn&apos;t find much readable text on that page, so there was nothing to pre-fill.
-            Just describe your business below — it takes about a minute.
-          </p>
-        ) : null}
-        {prefillState === "failed" ? (
-          <p className="development-note">{prefillFailureMessage(prefillFailureReason)}</p>
-        ) : null}
+        <input
+          autoCapitalize="none"
+          autoComplete="url"
+          autoCorrect="off"
+          enterKeyHint="go"
+          id="companyWebsite"
+          inputMode="url"
+          maxLength={200}
+          name="companyWebsite"
+          onChange={(event) => {
+            const nextValue = event.currentTarget.value;
+            setValues((current) => ({ ...current, companyWebsite: nextValue }));
+          }}
+          placeholder="yourcompany.com"
+          spellCheck={false}
+          type="url"
+          value={values.companyWebsite}
+        />
       </Field>
 
-      {FREE_INTAKE_FIELDS.filter((field) => field.key !== "companyWebsite").map((field) => (
-        <Field error={state.errors[field.key]} id={field.key} key={field.key} label={field.label}>
-          {field.input === "textarea" ? (
-            <textarea
-              id={field.key}
-              maxLength={field.maxLength}
-              name={field.key}
-              onChange={(event) => {
-                const nextValue = event.currentTarget.value;
-                setValues((current) => ({ ...current, [field.key]: nextValue }));
-              }}
-              rows={field.rows ?? 4}
-              value={values[field.key]}
-            />
-          ) : (
-            <input
-              id={field.key}
-              maxLength={field.maxLength}
-              name={field.key}
-              onChange={(event) => {
-                const nextValue = event.currentTarget.value;
-                setValues((current) => ({ ...current, [field.key]: nextValue }));
-              }}
-              type="text"
-              value={values[field.key]}
-            />
-          )}
-        </Field>
-      ))}
+      <details
+        className="form-field"
+        onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
+        open={detailsOpen || hasDetailError}
+      >
+        <summary>Add details for a sharper summary (optional)</summary>
+        {FREE_INTAKE_FIELDS.filter((field) => !field.required).map((field) => (
+          <Field error={state.errors[field.key]} id={field.key} key={field.key} label={field.label}>
+            {field.input === "textarea" ? (
+              <textarea
+                id={field.key}
+                maxLength={field.maxLength}
+                name={field.key}
+                onChange={(event) => {
+                  const nextValue = event.currentTarget.value;
+                  setValues((current) => ({ ...current, [field.key]: nextValue }));
+                }}
+                rows={field.rows ?? 4}
+                value={values[field.key]}
+              />
+            ) : (
+              <input
+                id={field.key}
+                maxLength={field.maxLength}
+                name={field.key}
+                onChange={(event) => {
+                  const nextValue = event.currentTarget.value;
+                  setValues((current) => ({ ...current, [field.key]: nextValue }));
+                }}
+                type="text"
+                value={values[field.key]}
+              />
+            )}
+          </Field>
+        ))}
+      </details>
 
       <div className="contact-form__honeypot" aria-hidden="true">
         <label htmlFor="website">Website</label>
@@ -311,8 +253,14 @@ export function FreeScannerForm({
       </p>
 
       <button className="button button--primary" disabled={isPending} type="submit">
-        {isPending ? "Generating..." : "Get my free summary"}
+        {isPending ? "Reading your website..." : "Show my top AI opportunities"}
       </button>
+      {isPending ? (
+        <p className="development-note" role="status">
+          This takes about a minute. We&apos;re reading your site and finding your top
+          opportunities — please keep this page open.
+        </p>
+      ) : null}
     </form>
   );
 }

@@ -1,17 +1,21 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 
 import { resolvePrimaryCtaHref } from "@/content/site-config";
 import { generateFreeScannerCandidates } from "@/lib/scanner-analysis";
 import {
+  FREE_PROFILE_UNAVAILABLE_MESSAGE,
+  completeFreeScannerValues,
   freeScannerErrorState,
   freeScannerSuccessState,
   freeScannerIntakeValuesFromFormData,
   validateFreeScannerIntakeValues,
   type FreeScannerFormState,
+  type FreeSiteDraft,
 } from "@/lib/scanner-free-intake";
+import { fetchSiteProfileDraft } from "@/lib/scanner-site-profile";
 import {
   buildFreeLeadId,
   freeLeadErrorState,
@@ -106,8 +110,35 @@ export async function submitFreeScannerIntake(
     });
   }
 
+  // The visitor may have given only a website. Read the site to fill in what
+  // they skipped (name, industry, description); anything they typed wins, and
+  // the optional goal/workflow/AI-use answers get neutral defaults.
+  let draft: FreeSiteDraft | null = null;
+  const needsProfile =
+    !validation.values.companyName ||
+    !validation.values.industry ||
+    !validation.values.companyDescription;
+  if (needsProfile) {
+    try {
+      draft = await fetchSiteProfileDraft(validation.values.companyWebsite, {
+        ipHash: createHash("sha256").update(clientIp).digest("hex"),
+      });
+    } catch {
+      draft = null;
+    }
+  }
+  const analysisValues = completeFreeScannerValues(validation.values, draft);
+  if (!analysisValues.companyDescription) {
+    // The site could not be read and the visitor gave no description, so there
+    // is nothing to analyze. Ask for one sentence rather than guessing.
+    logAttempt("failed", "profile_unavailable");
+    return freeScannerErrorState(validation.values, {
+      companyDescription: FREE_PROFILE_UNAVAILABLE_MESSAGE,
+    });
+  }
+
   try {
-    const ranked = await generateFreeScannerCandidates(validation.values);
+    const ranked = await generateFreeScannerCandidates(analysisValues);
     const state = freeScannerSuccessState(validation.values, ranked);
     const summaryToken = signFreeSummary(
       {

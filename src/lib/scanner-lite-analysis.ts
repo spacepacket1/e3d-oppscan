@@ -1,4 +1,4 @@
-import { getE3dApiBaseUrl } from "@/lib/scanner-payments";
+import { SiteProfileError, fetchSiteProfileDraft } from "@/lib/scanner-site-profile";
 import {
   CANDIDATE_SCHEMA_INSTRUCTIONS,
   PROMPT_SAFETY,
@@ -59,82 +59,29 @@ export class HvacLiteProfileError extends Error {
   }
 }
 
-// Reuses the same upstream e3d.ai endpoint the free/paid "Analyze my site"
-// prefill buttons call (see app/api/free-intake/prefill/route.ts), but
-// called directly server-side since Lite has no interactive prefill step --
-// the site review happens automatically on submit, not behind a button.
+// Site analysis itself lives in scanner-site-profile.ts (shared with the free
+// summary). This wrapper keeps the HVAC Lite behaviour: the same error type and
+// HVAC-flavoured fallbacks for any field the site did not yield.
 export async function fetchHvacLiteCompanyProfile(
   website: string,
   { ipHash, fetchImpl = fetch }: { ipHash: string; fetchImpl?: typeof fetch },
 ): Promise<HvacLiteCompanyProfile> {
-  const internalServiceKey =
-    process.env.E3D_SCANNER_INTERNAL_SERVICE_KEY?.trim() || "";
-  if (!internalServiceKey) {
-    throw new HvacLiteProfileError(
-      "not_configured",
-      "Site analysis is not configured.",
-    );
-  }
-
-  const endpointUrl = `${getE3dApiBaseUrl()}/payments/scanner/intake-prefill-free`;
-  let response: Response;
+  let draft;
   try {
-    response = await fetchImpl(endpointUrl, {
-      method: "POST",
-      cache: "no-store",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Internal ${internalServiceKey}`,
-      },
-      body: JSON.stringify({ website, ipHash }),
-    });
-  } catch {
-    throw new HvacLiteProfileError(
-      "network_error",
-      "Could not reach the site analysis service.",
-    );
-  }
-
-  let payload: { ok?: boolean; draft?: Record<string, string | null> } | null;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = null;
-  }
-
-  if (!response.ok || !payload?.ok) {
-    throw new HvacLiteProfileError(
-      "upstream_rejected",
-      "That website could not be analyzed.",
-    );
-  }
-
-  const draft = payload.draft || {};
-  const companyName = readDraftField(draft, "companyName");
-  const industry = readDraftField(draft, "industry");
-  const companyDescription = readDraftField(draft, "companyDescription");
-
-  if (!companyName && !industry && !companyDescription) {
-    throw new HvacLiteProfileError(
-      "empty_profile",
-      "That website did not return enough information to analyze.",
-    );
+    draft = await fetchSiteProfileDraft(website, { ipHash, fetchImpl });
+  } catch (error) {
+    if (error instanceof SiteProfileError) {
+      throw new HvacLiteProfileError(error.reason, error.message);
+    }
+    throw error;
   }
 
   return {
     companyWebsite: website,
-    companyName: companyName || website,
-    industry: industry || "HVAC services",
-    companyDescription: companyDescription || `An HVAC business at ${website}.`,
+    companyName: draft.companyName || website,
+    industry: draft.industry || "HVAC services",
+    companyDescription: draft.companyDescription || `An HVAC business at ${website}.`,
   };
-}
-
-function readDraftField(
-  draft: Record<string, string | null>,
-  key: string,
-) {
-  const value = draft[key];
-  return typeof value === "string" ? value.trim() : "";
 }
 
 // Biases candidate generation toward opportunity categories that are

@@ -13,7 +13,7 @@ export function generateMetadata(): Metadata {
     path: "/free",
     title: "Free AI Opportunity Summary | Oppscan",
     description:
-      "Get a free, simplified summary of your top AI opportunities in minutes. No payment required. Upgrade to the paid scan for the full ranked report and a consultation with FutCo.",
+      "Enter your website and get a free summary of your top AI opportunities in about a minute. No payment, no account. Upgrade to the paid scan for the full ranked report and a consultation with FutCo.",
   });
 }
 
@@ -39,7 +39,7 @@ export default function FreeScannerPage() {
           <SectionHeading
             align="left"
             as="h1"
-            description="Answer six quick questions and get a free, simplified summary of where AI could help your business — no payment, no account. Want the full ranked report, evidence, first steps, and a consultation with FutCo? Upgrade to the paid scan any time."
+            description="Enter your website and get a free summary of where AI could help your business, in about a minute — no payment, no account. Want the full ranked report, evidence, first steps, and a consultation with FutCo? Upgrade to the paid scan any time."
             eyebrow="FREE SUMMARY"
             title="Try the free AI opportunity summary"
             titleId="page-title"

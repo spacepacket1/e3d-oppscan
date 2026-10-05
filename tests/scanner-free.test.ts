@@ -11,6 +11,9 @@ const rateLimitMocks = vi.hoisted(() => ({
 const analysisMocks = vi.hoisted(() => ({
   generateFreeScannerCandidates: vi.fn(),
 }));
+const profileMocks = vi.hoisted(() => ({
+  fetchSiteProfileDraft: vi.fn(),
+}));
 
 vi.mock("next/headers", () => ({
   headers: headersMock,
@@ -37,9 +40,21 @@ vi.mock("@/lib/scanner-analysis", async () => {
   return { ...actual, ...analysisMocks };
 });
 
+vi.mock("@/lib/scanner-site-profile", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/scanner-site-profile")>(
+    "@/lib/scanner-site-profile",
+  );
+  return { ...actual, ...profileMocks };
+});
+
 import { submitFreeScannerIntake } from "../app/free/actions";
 import {
+  FREE_DEFAULT_AI_USE,
+  FREE_DEFAULT_GOAL,
+  FREE_DEFAULT_WORKFLOWS,
   FREE_INTAKE_FIELDS,
+  FREE_PROFILE_UNAVAILABLE_MESSAGE,
+  completeFreeScannerValues,
   emptyFreeScannerIntakeValues,
   freeScannerIntakeValuesFromFormData,
   mergeFreeScannerIntakeDraft,
@@ -96,12 +111,23 @@ describe("free scanner intake parsing and validation", () => {
     });
   });
 
-  it("requires every free field and enforces max length", () => {
+  it("requires only the website; every other field is optional", () => {
     const missing = validateFreeScannerIntakeValues(emptyFreeScannerIntakeValues);
     expect(missing.isValid).toBe(false);
-    for (const field of FREE_INTAKE_FIELDS) {
-      expect(missing.errors[field.key]).toBeTruthy();
-    }
+    expect(Object.keys(missing.errors)).toEqual(["companyWebsite"]);
+    expect(FREE_INTAKE_FIELDS.filter((field) => field.required).map((f) => f.key)).toEqual([
+      "companyWebsite",
+    ]);
+
+    const websiteOnly = validateFreeScannerIntakeValues({
+      ...emptyFreeScannerIntakeValues,
+      companyWebsite: "redwoodfab.example.com",
+    });
+    expect(websiteOnly.isValid).toBe(true);
+    expect(websiteOnly.values.companyWebsite).toBe("https://redwoodfab.example.com");
+  });
+
+  it("still enforces max length on the optional fields", () => {
 
     const tooLong = validateFreeScannerIntakeValues({
       ...validValues,
@@ -225,11 +251,11 @@ describe("submitFreeScannerIntake action", () => {
   it("rejects invalid values without checking turnstile or generating", async () => {
     const result = await submitFreeScannerIntake(
       { status: "idle", values: emptyFreeScannerIntakeValues, errors: {} },
-      buildFormData({ goalPrimary: "" }),
+      buildFormData({ companyWebsite: "" }),
     );
 
     expect(result.status).toBe("error");
-    expect(result.errors.goalPrimary).toBeTruthy();
+    expect(result.errors.companyWebsite).toBeTruthy();
     expect(securityMocks.verifyTurnstileToken).not.toHaveBeenCalled();
     expect(analysisMocks.generateFreeScannerCandidates).not.toHaveBeenCalled();
   });
@@ -272,5 +298,127 @@ describe("submitFreeScannerIntake action", () => {
     expect(result.status).toBe("error");
     expect(result.candidates).toBeUndefined();
     expect(result.errors.form).toMatch(/could not be generated/);
+  });
+});
+
+describe("completeFreeScannerValues", () => {
+  const site = { ...emptyFreeScannerIntakeValues, companyWebsite: "https://redwoodfab.example.com" };
+  const draft = {
+    companyName: "Redwood Fab",
+    industry: "Metal fabrication",
+    companyDescription: "Sheet metal for industrial clients.",
+  };
+
+  it("fills blanks from the site, then neutral defaults", () => {
+    const done = completeFreeScannerValues(site, draft);
+    expect(done).toMatchObject({
+      companyName: "Redwood Fab",
+      industry: "Metal fabrication",
+      companyDescription: "Sheet metal for industrial clients.",
+      goalPrimary: FREE_DEFAULT_GOAL,
+      timeConsumingWorkflows: FREE_DEFAULT_WORKFLOWS,
+      currentAiUse: FREE_DEFAULT_AI_USE,
+    });
+  });
+
+  it("never overwrites what the visitor typed", () => {
+    const done = completeFreeScannerValues(
+      { ...site, companyName: "My Name", goalPrimary: "Win more bids" },
+      draft,
+    );
+    expect(done.companyName).toBe("My Name");
+    expect(done.goalPrimary).toBe("Win more bids");
+    expect(done.industry).toBe("Metal fabrication");
+  });
+
+  it("falls back to the hostname for the name and leaves the description empty without a draft", () => {
+    const done = completeFreeScannerValues(site, null);
+    expect(done.companyName).toBe("redwoodfab.example.com");
+    expect(done.companyDescription).toBe("");
+  });
+});
+
+describe("submitFreeScannerIntake with only a website", () => {
+  const draft = {
+    companyName: "Redwood Fab",
+    industry: "Metal fabrication",
+    companyDescription: "Sheet metal for industrial clients.",
+  };
+  const run = (overrides: Partial<FreeScannerIntakeValues> = {}) =>
+    submitFreeScannerIntake(
+      { status: "idle", values: emptyFreeScannerIntakeValues, errors: {} },
+      buildFormData({
+        companyName: "",
+        industry: "",
+        companyDescription: "",
+        goalPrimary: "",
+        timeConsumingWorkflows: "",
+        currentAiUse: "",
+        ...overrides,
+      }),
+    );
+
+  beforeEach(() => {
+    headersMock.mockResolvedValue(
+      new Headers({ origin: "https://oppscan.e3d.ai", host: "oppscan.e3d.ai" }),
+    );
+    securityMocks.isTrustedServerActionOrigin.mockReturnValue(true);
+    rateLimitMocks.isFreeAnalysisRateLimited.mockReturnValue(false);
+    securityMocks.verifyTurnstileToken.mockResolvedValue(true);
+    analysisMocks.generateFreeScannerCandidates.mockResolvedValue(rankScannerCandidates(candidates));
+    profileMocks.fetchSiteProfileDraft.mockResolvedValue(draft);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("reads the site and analyzes with the drafted fields plus neutral defaults", async () => {
+    const result = await run();
+    expect(result.status).toBe("success");
+    expect(profileMocks.fetchSiteProfileDraft).toHaveBeenCalledOnce();
+    expect(profileMocks.fetchSiteProfileDraft.mock.calls[0][0]).toBe("https://redwoodfab.example.com");
+    const analyzed = analysisMocks.generateFreeScannerCandidates.mock.calls[0][0];
+    expect(analyzed).toMatchObject({
+      companyName: "Redwood Fab",
+      industry: "Metal fabrication",
+      companyDescription: "Sheet metal for industrial clients.",
+      goalPrimary: FREE_DEFAULT_GOAL,
+    });
+  });
+
+  it("keeps what the visitor typed and only reads the site for the blanks", async () => {
+    const result = await run({ companyDescription: "We weld brackets." });
+    expect(result.status).toBe("success");
+    expect(profileMocks.fetchSiteProfileDraft).toHaveBeenCalledOnce();
+    const analyzed = analysisMocks.generateFreeScannerCandidates.mock.calls[0][0];
+    expect(analyzed.companyDescription).toBe("We weld brackets.");
+    expect(analyzed.companyName).toBe("Redwood Fab");
+  });
+
+  it("does not read the site at all when name, industry and description are all given", async () => {
+    const result = await submitFreeScannerIntake(
+      { status: "idle", values: emptyFreeScannerIntakeValues, errors: {} },
+      buildFormData(),
+    );
+    expect(result.status).toBe("success");
+    expect(profileMocks.fetchSiteProfileDraft).not.toHaveBeenCalled();
+  });
+
+  it("asks for one sentence when the site cannot be read and nothing was typed", async () => {
+    profileMocks.fetchSiteProfileDraft.mockRejectedValue(new Error("blocked"));
+    const result = await run();
+    expect(result.status).toBe("error");
+    expect(result.errors.companyDescription).toBe(FREE_PROFILE_UNAVAILABLE_MESSAGE);
+    expect(analysisMocks.generateFreeScannerCandidates).not.toHaveBeenCalled();
+  });
+
+  it("proceeds without the site when the visitor supplied the description themselves", async () => {
+    profileMocks.fetchSiteProfileDraft.mockRejectedValue(new Error("blocked"));
+    const result = await run({ companyDescription: "We weld brackets." });
+    expect(result.status).toBe("success");
+    const analyzed = analysisMocks.generateFreeScannerCandidates.mock.calls[0][0];
+    expect(analyzed.companyDescription).toBe("We weld brackets.");
+    expect(analyzed.companyName).toBe("redwoodfab.example.com");
   });
 });

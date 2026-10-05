@@ -90,4 +90,43 @@ describe("free scanner form interaction", () => {
     });
     expect(description.value).toBe("We build things.");
   });
+
+  it("leads with a single website field, and tucks the optional questions into a closed section", () => {
+    const { container } = renderForm();
+    expect(screen.getByText("Where could AI help your business?")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /show my top ai opportunities/i })).toBeTruthy();
+
+    const details = container.querySelector("details") as HTMLDetailsElement;
+    expect(details).toBeTruthy();
+    expect(details.open).toBe(false);
+    expect(details.textContent).toMatch(/optional/i);
+
+    // The website is the only field outside the optional section.
+    const website = screen.getByLabelText(/company website/i);
+    expect(details.contains(website)).toBe(false);
+    for (const label of [/company name/i, /industry/i, /what does your company do/i]) {
+      expect(details.contains(screen.getByLabelText(label))).toBe(true);
+    }
+  });
+
+  it("no longer offers the separate Analyze my site step", () => {
+    renderForm();
+    expect(screen.queryByRole("button", { name: /analyze my site/i })).toBeNull();
+  });
+
+  it("opens the optional section and shows the message when the site could not be read", () => {
+    const errorState: FreeScannerFormState = {
+      status: "error",
+      values: { ...emptyFreeScannerIntakeValues, companyWebsite: "https://blocked.example.com" },
+      errors: { companyDescription: "We couldn't read that website automatically." },
+    };
+    const { container } = render(
+      createElement(FreeScannerForm, {
+        action: async () => errorState,
+        initialState: errorState,
+      }),
+    );
+    expect((container.querySelector("details") as HTMLDetailsElement).open).toBe(true);
+    expect(screen.getByText(/couldn't read that website automatically/i)).toBeTruthy();
+  });
 });
