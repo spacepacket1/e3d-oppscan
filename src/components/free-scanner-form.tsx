@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 
@@ -14,7 +14,7 @@ import {
 } from "@/lib/scanner-free-intake";
 import { FreeLeadCapture } from "@/components/free-lead-capture";
 import type { FreeLeadFormState } from "@/lib/scanner-free-lead";
-import { mountTurnstileWidget, resetTurnstileWidget } from "@/lib/turnstile-widget";
+import { useTurnstile } from "@/lib/use-turnstile";
 
 const TURNSTILE_WIDGET_ID = "free-scanner-turnstile";
 
@@ -49,16 +49,21 @@ export function FreeScannerForm({
   // "we couldn't read your site, add a sentence" -- keep the section open so
   // the message and the field are in view.
   const hasDetailError = OPTIONAL_FIELD_KEYS.some((key) => state.errors[key]);
-  const [turnstileFailed, setTurnstileFailed] = useState(false);
-  const [turnstileScriptBlocked, setTurnstileScriptBlocked] = useState(false);
+  const {
+    containerRef: setTurnstileContainer,
+    failed: turnstileFailed,
+    scriptBlocked: turnstileScriptBlocked,
+    checking: turnstileChecking,
+    reset: resetTurnstile,
+  } = useTurnstile(TURNSTILE_WIDGET_ID, turnstileSiteKey);
 
   // A stale or already-verified Turnstile token left in the widget after a
   // failed submission would fail the same way on a plain resubmit, so force
   // a fresh challenge/token any time the server rejects the form.
   useEffect(() => {
     if (state.status !== "error") return;
-    resetTurnstileWidget(TURNSTILE_WIDGET_ID);
-  }, [state]);
+    resetTurnstile();
+  }, [state, resetTurnstile]);
 
   useEffect(() => {
     if (state.status !== "success") return;
@@ -68,33 +73,6 @@ export function FreeScannerForm({
     ensureMetaPixel(FUTCO_META_PIXEL_ID);
     trackMetaPixelEvent("FreeSummaryGenerated", { custom: true });
   }, [state.status]);
-
-  // Explicit rendering, triggered by a ref callback that fires exactly when
-  // the container is attached, rather than Cloudflare's implicit
-  // `data-sitekey` auto-render (which only scans the DOM once, at script
-  // load time, and never picks up a container that appears later).
-  const turnstileCleanupRef = useRef<(() => void) | null>(null);
-  const setTurnstileContainer = useCallback(
-    (node: HTMLDivElement | null) => {
-      turnstileCleanupRef.current?.();
-      turnstileCleanupRef.current = null;
-      if (!node || !turnstileSiteKey) return;
-      setTurnstileFailed(false);
-      setTurnstileScriptBlocked(false);
-      turnstileCleanupRef.current = mountTurnstileWidget(
-        node,
-        {
-          sitekey: turnstileSiteKey,
-          appearance: "always",
-          callback: () => setTurnstileFailed(false),
-          "error-callback": () => setTurnstileFailed(true),
-          "expired-callback": () => setTurnstileFailed(true),
-        },
-        () => setTurnstileScriptBlocked(true),
-      );
-    },
-    [turnstileSiteKey],
-  );
 
   if (state.status === "success" && state.candidates) {
     return (
@@ -252,8 +230,16 @@ export function FreeScannerForm({
         <a href="https://futco.ai/privacy">privacy policy</a>.
       </p>
 
-      <button className="button button--primary" disabled={isPending} type="submit">
-        {isPending ? "Reading your website..." : "Show my top AI opportunities"}
+      <button
+        className="button button--primary"
+        disabled={isPending || turnstileChecking}
+        type="submit"
+      >
+        {isPending
+          ? "Reading your website..."
+          : turnstileChecking
+            ? "Getting ready..."
+            : "Show my top AI opportunities"}
       </button>
       {isPending ? (
         <p className="development-note" role="status">

@@ -19,7 +19,20 @@ describe("FreeLeadCapture", () => {
     expect(markup).toContain('type="email"');
     expect(markup).toContain('name="marketingOptIn"');
     expect(markup).not.toMatch(/name="marketingOptIn"[^>]*checked/);
-    expect(markup).toContain("Email me this summary");
+  });
+
+  it("holds the button on 'Getting ready...' while the invisible bot check runs", () => {
+    expect(markup).toContain("Getting ready...");
+    expect(markup).toMatch(/<button[^>]*disabled[^>]*>Getting ready\.\.\./);
+  });
+
+  it("shows the normal button when no bot check is configured", () => {
+    const withoutCheck = renderToStaticMarkup(
+      createElement(FreeLeadCapture, { action: vi.fn(), summaryToken: "signed.token" }),
+    );
+    expect(withoutCheck).toContain("Email me this summary");
+    expect(withoutCheck).not.toContain("Getting ready...");
+    expect(withoutCheck).not.toMatch(/<button[^>]*disabled/);
   });
 
   it("carries the signed summary token and a hidden honeypot", () => {

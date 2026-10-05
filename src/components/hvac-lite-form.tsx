@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import { hvacLiteContent } from "@/content/hvac-content";
 import { getScannerCampaign } from "@/lib/scanner-campaigns";
@@ -11,7 +11,7 @@ import {
 } from "@/lib/scanner-lite-stack";
 import { ensureMetaPixel, trackMetaPixelEvent } from "@/lib/meta-pixel";
 import type { HvacLiteFormState, HvacLiteIntakeValues } from "@/lib/scanner-lite-intake";
-import { mountTurnstileWidget, resetTurnstileWidget } from "@/lib/turnstile-widget";
+import { useTurnstile } from "@/lib/use-turnstile";
 
 const TURNSTILE_WIDGET_ID = "hvac-lite-turnstile";
 const metaPixelId = getScannerCampaign("hvac_lite")?.metaPixelId ?? "";
@@ -32,8 +32,13 @@ export function HvacLiteForm({
 }: HvacLiteFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [values, setValues] = useState<HvacLiteIntakeValues>(state.values);
-  const [turnstileFailed, setTurnstileFailed] = useState(false);
-  const [turnstileScriptBlocked, setTurnstileScriptBlocked] = useState(false);
+  const {
+    containerRef: setTurnstileContainer,
+    failed: turnstileFailed,
+    scriptBlocked: turnstileScriptBlocked,
+    checking: turnstileChecking,
+    reset: resetTurnstile,
+  } = useTurnstile(TURNSTILE_WIDGET_ID, turnstileSiteKey);
 
   useEffect(() => {
     ensureMetaPixel(metaPixelId);
@@ -42,36 +47,13 @@ export function HvacLiteForm({
 
   useEffect(() => {
     if (state.status !== "error") return;
-    resetTurnstileWidget(TURNSTILE_WIDGET_ID);
-  }, [state]);
+    resetTurnstile();
+  }, [state, resetTurnstile]);
 
   useEffect(() => {
     if (state.status !== "success") return;
     trackMetaPixelEvent("CompleteRegistration");
   }, [state.status]);
-
-  const turnstileCleanupRef = useRef<(() => void) | null>(null);
-  const setTurnstileContainer = useCallback(
-    (node: HTMLDivElement | null) => {
-      turnstileCleanupRef.current?.();
-      turnstileCleanupRef.current = null;
-      if (!node || !turnstileSiteKey) return;
-      setTurnstileFailed(false);
-      setTurnstileScriptBlocked(false);
-      turnstileCleanupRef.current = mountTurnstileWidget(
-        node,
-        {
-          sitekey: turnstileSiteKey,
-          appearance: "always",
-          callback: () => setTurnstileFailed(false),
-          "error-callback": () => setTurnstileFailed(true),
-          "expired-callback": () => setTurnstileFailed(true),
-        },
-        () => setTurnstileScriptBlocked(true),
-      );
-    },
-    [turnstileSiteKey],
-  );
 
   if (state.status === "success") {
     return (
@@ -216,8 +198,16 @@ export function HvacLiteForm({
         </p>
       ) : null}
 
-      <button className="button button--primary" disabled={isPending} type="submit">
-        {isPending ? hvacLiteContent.form.pendingLabel : hvacLiteContent.form.submitLabel}
+      <button
+        className="button button--primary"
+        disabled={isPending || turnstileChecking}
+        type="submit"
+      >
+        {isPending
+          ? hvacLiteContent.form.pendingLabel
+          : turnstileChecking
+            ? "Getting ready..."
+            : hvacLiteContent.form.submitLabel}
       </button>
     </form>
   );

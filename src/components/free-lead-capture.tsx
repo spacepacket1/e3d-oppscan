@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import { FUTCO_META_PIXEL_ID, ensureMetaPixel, trackMetaPixelEvent } from "@/lib/meta-pixel";
 import { emptyFreeLeadValues, type FreeLeadFormState } from "@/lib/scanner-free-lead";
-import { mountTurnstileWidget, resetTurnstileWidget } from "@/lib/turnstile-widget";
+import { useTurnstile } from "@/lib/use-turnstile";
 
 const TURNSTILE_WIDGET_ID = "free-lead-turnstile";
 
@@ -27,13 +27,18 @@ export function FreeLeadCapture({
   );
   const [email, setEmail] = useState("");
   const [marketingOptIn, setMarketingOptIn] = useState(false);
-  const [turnstileFailed, setTurnstileFailed] = useState(false);
-  const [turnstileScriptBlocked, setTurnstileScriptBlocked] = useState(false);
+  const {
+    containerRef: setTurnstileContainer,
+    failed: turnstileFailed,
+    scriptBlocked: turnstileScriptBlocked,
+    checking: turnstileChecking,
+    reset: resetTurnstile,
+  } = useTurnstile(TURNSTILE_WIDGET_ID, turnstileSiteKey);
 
   useEffect(() => {
     if (state.status !== "error") return;
-    resetTurnstileWidget(TURNSTILE_WIDGET_ID);
-  }, [state]);
+    resetTurnstile();
+  }, [state, resetTurnstile]);
 
   // The real lead event: a person gave us an email address.
   useEffect(() => {
@@ -41,29 +46,6 @@ export function FreeLeadCapture({
     ensureMetaPixel(FUTCO_META_PIXEL_ID);
     trackMetaPixelEvent("Lead");
   }, [state.status]);
-
-  const turnstileCleanupRef = useRef<(() => void) | null>(null);
-  const setTurnstileContainer = useCallback(
-    (node: HTMLDivElement | null) => {
-      turnstileCleanupRef.current?.();
-      turnstileCleanupRef.current = null;
-      if (!node || !turnstileSiteKey) return;
-      setTurnstileFailed(false);
-      setTurnstileScriptBlocked(false);
-      turnstileCleanupRef.current = mountTurnstileWidget(
-        node,
-        {
-          sitekey: turnstileSiteKey,
-          appearance: "always",
-          callback: () => setTurnstileFailed(false),
-          "error-callback": () => setTurnstileFailed(true),
-          "expired-callback": () => setTurnstileFailed(true),
-        },
-        () => setTurnstileScriptBlocked(true),
-      );
-    },
-    [turnstileSiteKey],
-  );
 
   if (state.status === "success") {
     return (
@@ -151,8 +133,12 @@ export function FreeLeadCapture({
         </p>
       ) : null}
 
-      <button className="button button--primary" disabled={isPending} type="submit">
-        {isPending ? "Sending..." : "Email me this summary"}
+      <button
+        className="button button--primary"
+        disabled={isPending || turnstileChecking}
+        type="submit"
+      >
+        {isPending ? "Sending..." : turnstileChecking ? "Getting ready..." : "Email me this summary"}
       </button>
     </form>
   );
