@@ -18,6 +18,11 @@ function getClient() {
   return cachedClient;
 }
 
+// Shared with the free-summary emails so there is one SES client per process.
+export function getSesClient() {
+  return getClient();
+}
+
 export async function sendHvacLiteReportEmailViaSes(
   {
     fromAddress,

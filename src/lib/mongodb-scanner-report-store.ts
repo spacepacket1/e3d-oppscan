@@ -10,6 +10,10 @@ import type { RankedScannerCandidate } from "@/lib/scanner-scoring";
 import {
   normalizeReportEmail,
   type ScannerCampaignTag,
+  type FreeLeadDeliveryStatus,
+  type FreeLeadFeedCursor,
+  type FreeLeadFeedSummary,
+  type FreeLeadRecord,
   type ScannerReportFeedCursor,
   type ScannerReportFeedSummary,
   type ScannerCompletedReport,
@@ -38,6 +42,16 @@ type ScannerReportDocument = {
   campaign?: ScannerCampaignTag;
   revoked?: boolean;
   telemetryEvents?: Record<string, Date>;
+  // Free-summary leads share this collection. They never have `completed`
+  // set, so every report query (all of which filter on completed: true)
+  // ignores them.
+  kind?: "free_lead";
+  createdAt?: Date;
+  email?: string;
+  marketingOptIn?: boolean;
+  websiteHost?: string;
+  opportunityTitles?: string[];
+  deliveryStatus?: FreeLeadDeliveryStatus;
 };
 
 type CollectionSource =
@@ -111,6 +125,73 @@ export class MongoScannerReportStore implements ScannerReportStore {
       })
       .toArray();
     return documents.map(completedReportFromDocument);
+  }
+
+  async saveFreeLead(lead: FreeLeadRecord): Promise<{ created: boolean }> {
+    const collection = await this.getCollection();
+    const result = await collection.updateOne(
+      { _id: lead.leadId },
+      {
+        $setOnInsert: {
+          kind: "free_lead" as const,
+          createdAt: new Date(lead.createdAt),
+          email: lead.email,
+          marketingOptIn: lead.marketingOptIn,
+          websiteHost: lead.websiteHost,
+          opportunityTitles: lead.opportunityTitles,
+          deliveryStatus: lead.deliveryStatus,
+        },
+      },
+      { upsert: true },
+    );
+    return { created: result.upsertedCount === 1 };
+  }
+
+  async setFreeLeadDeliveryStatus(leadId: string, status: FreeLeadDeliveryStatus) {
+    const collection = await this.getCollection();
+    await collection.updateOne({ _id: leadId, kind: "free_lead" }, { $set: { deliveryStatus: status } });
+  }
+
+  async listFreeLeadSummariesAfter(
+    after: FreeLeadFeedCursor | null,
+    limit: number,
+  ): Promise<FreeLeadFeedSummary[]> {
+    const collection = await this.getCollection();
+    const filter: Filter<ScannerReportDocument> = { kind: "free_lead" };
+    if (after) {
+      const afterDate = new Date(after.createdAt);
+      filter.$or = [
+        { createdAt: { $gt: afterDate } },
+        { createdAt: afterDate, _id: { $gt: after.leadId } },
+      ];
+    }
+    // Projection keeps the email address out of memory: the feed never needs it.
+    const documents = await collection
+      .find(filter, {
+        projection: {
+          createdAt: 1,
+          websiteHost: 1,
+          marketingOptIn: 1,
+          opportunityTitles: 1,
+          deliveryStatus: 1,
+        },
+      })
+      .sort({ createdAt: 1, _id: 1 })
+      .limit(limit)
+      .toArray();
+    const summaries: FreeLeadFeedSummary[] = [];
+    for (const document of documents) {
+      if (!document.createdAt) continue;
+      summaries.push({
+        leadId: document._id,
+        createdAt: document.createdAt.toISOString(),
+        websiteHost: document.websiteHost ?? "unknown",
+        marketingOptIn: document.marketingOptIn === true,
+        opportunityCount: document.opportunityTitles?.length ?? 0,
+        deliveryStatus: document.deliveryStatus ?? "pending",
+      });
+    }
+    return summaries;
   }
 
   async listCompletedSummariesAfter(

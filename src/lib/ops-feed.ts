@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 
 import type { HvacLeadContext } from "@/lib/hvac-fit";
 import type {
+  FreeLeadFeedSummary,
   ScannerReportFeedCursor,
   ScannerReportFeedSummary,
 } from "@/lib/scanner-report-store";
@@ -55,6 +56,43 @@ export function buildOpsFeedEvent(
       onlineBookingDetected: context ? context.detected.onlineBooking : null,
       chatWidgetDetected: context ? context.detected.chatWidget : null,
       toolsReportedByOwner: context?.toolsUsed ?? [],
+    },
+  };
+}
+
+// Free-summary leads: a visitor who asked for their summary by email. Same
+// rules as the report stream -- no email address, no raw ids -- so the feed can
+// say "a lead arrived, from this site, with this consent" without carrying
+// anything that identifies the person.
+export type OpsFreeLeadEvent = {
+  id: string;
+  type: "oppscan.free_lead_captured";
+  occurredAt: string;
+  source: typeof OPS_FEED_SOURCE;
+  data: {
+    product: "free_summary";
+    websiteHost: string;
+    marketingOptIn: boolean;
+    opportunityCount: number;
+    deliveryStatus: FreeLeadFeedSummary["deliveryStatus"];
+  };
+};
+
+export function buildOpsFreeLeadEvent(
+  summary: FreeLeadFeedSummary,
+  idSecret: string,
+): OpsFreeLeadEvent {
+  return {
+    id: `lead_${createHmac("sha256", idSecret).update(summary.leadId).digest("hex").slice(0, 24)}`,
+    type: "oppscan.free_lead_captured",
+    occurredAt: summary.createdAt,
+    source: OPS_FEED_SOURCE,
+    data: {
+      product: "free_summary",
+      websiteHost: summary.websiteHost,
+      marketingOptIn: summary.marketingOptIn,
+      opportunityCount: summary.opportunityCount,
+      deliveryStatus: summary.deliveryStatus,
     },
   };
 }

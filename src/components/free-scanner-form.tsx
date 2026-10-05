@@ -14,6 +14,8 @@ import {
   type FreeScannerIntakeFieldKey,
   type FreeScannerIntakeValues,
 } from "@/lib/scanner-free-intake";
+import { FreeLeadCapture } from "@/components/free-lead-capture";
+import type { FreeLeadFormState } from "@/lib/scanner-free-lead";
 import { mountTurnstileWidget, resetTurnstileWidget } from "@/lib/turnstile-widget";
 
 const TURNSTILE_WIDGET_ID = "free-scanner-turnstile";
@@ -24,6 +26,11 @@ type FreeScannerFormProps = {
     formData: FormData,
   ) => Promise<FreeScannerFormState>;
   initialState: FreeScannerFormState;
+  // The optional "email me this summary" step shown under the results.
+  leadAction?: (
+    previousState: FreeLeadFormState,
+    formData: FormData,
+  ) => Promise<FreeLeadFormState>;
   turnstileSiteKey?: string;
 };
 
@@ -51,6 +58,7 @@ function prefillFailureMessage(reason: string) {
 export function FreeScannerForm({
   action,
   initialState,
+  leadAction,
   turnstileSiteKey = "",
 }: FreeScannerFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
@@ -71,8 +79,11 @@ export function FreeScannerForm({
 
   useEffect(() => {
     if (state.status !== "success") return;
+    // Generating a summary is not a lead -- nobody has given us any contact
+    // information yet. The Lead event fires when they ask for it by email
+    // (see free-lead-capture.tsx).
     ensureMetaPixel(FUTCO_META_PIXEL_ID);
-    trackMetaPixelEvent("Lead");
+    trackMetaPixelEvent("FreeSummaryGenerated", { custom: true });
   }, [state.status]);
 
   // Explicit rendering, triggered by a ref callback that fires exactly when
@@ -123,6 +134,13 @@ export function FreeScannerForm({
             <p>{candidate.summary}</p>
           </section>
         ))}
+        {leadAction && state.summaryToken ? (
+          <FreeLeadCapture
+            action={leadAction}
+            summaryToken={state.summaryToken}
+            turnstileSiteKey={turnstileSiteKey}
+          />
+        ) : null}
         <div className="content-panel">
           <Link className="button button--primary" href="/">
             Unlock the full report + consultation ($99)

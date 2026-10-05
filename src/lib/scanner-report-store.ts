@@ -89,6 +89,33 @@ export type ScannerReportFeedCursor = {
   scanId: string;
 };
 
+// A visitor who asked for their free summary by email. Stored durably before
+// any email is sent, so a delivery failure never loses the lead. The email
+// itself stays in the database (and the notification email); it is never part
+// of the ops feed.
+export type FreeLeadDeliveryStatus = "pending" | "sent" | "failed";
+
+export type FreeLeadRecord = {
+  leadId: string;
+  createdAt: string;
+  email: string;
+  marketingOptIn: boolean;
+  websiteHost: string;
+  opportunityTitles: string[];
+  deliveryStatus: FreeLeadDeliveryStatus;
+};
+
+export type FreeLeadFeedSummary = {
+  leadId: string;
+  createdAt: string;
+  websiteHost: string;
+  marketingOptIn: boolean;
+  opportunityCount: number;
+  deliveryStatus: FreeLeadDeliveryStatus;
+};
+
+export type FreeLeadFeedCursor = { createdAt: string; leadId: string };
+
 export interface ScannerReportStore {
   getByScanId(scanId: string): Promise<ScannerCompletedReport | null>;
   getByTokenHash(tokenHash: string): Promise<ScannerCompletedReport | null>;
@@ -130,6 +157,19 @@ export interface ScannerReportStore {
     after: ScannerReportFeedCursor | null,
     limit: number,
   ): Promise<ScannerReportFeedSummary[]>;
+  // Saves a free-summary lead. `created` is false when the same email asked
+  // for the same site's summary before -- the caller should then not email
+  // again. Never overwrites an existing lead.
+  saveFreeLead(lead: FreeLeadRecord): Promise<{ created: boolean }>;
+  setFreeLeadDeliveryStatus(
+    leadId: string,
+    status: FreeLeadDeliveryStatus,
+  ): Promise<void>;
+  // Oldest-first page of free leads strictly after `after`, for the ops feed.
+  listFreeLeadSummariesAfter(
+    after: FreeLeadFeedCursor | null,
+    limit: number,
+  ): Promise<FreeLeadFeedSummary[]>;
   // Permanent, unlike setReportRevoked -- removes the record entirely
   // rather than just blocking the link. Admin-only.
   deleteReport(scanId: string): Promise<void>;
@@ -304,6 +344,37 @@ type MemoryRecord = {
 
 /** Explicit test double. Production code never selects or constructs this store. */
 export class InMemoryScannerReportStore implements ScannerReportStore {
+  private readonly freeLeads = new Map<string, FreeLeadRecord>();
+  async saveFreeLead(lead: FreeLeadRecord) {
+    if (this.freeLeads.has(lead.leadId)) return { created: false };
+    this.freeLeads.set(lead.leadId, structuredClone(lead));
+    return { created: true };
+  }
+  async setFreeLeadDeliveryStatus(leadId: string, status: FreeLeadDeliveryStatus) {
+    const lead = this.freeLeads.get(leadId);
+    if (lead) lead.deliveryStatus = status;
+  }
+  async listFreeLeadSummariesAfter(after: FreeLeadFeedCursor | null, limit: number) {
+    return [...this.freeLeads.values()]
+      .filter(
+        (lead) =>
+          !after ||
+          lead.createdAt > after.createdAt ||
+          (lead.createdAt === after.createdAt && lead.leadId > after.leadId),
+      )
+      .sort(
+        (a, b) => a.createdAt.localeCompare(b.createdAt) || a.leadId.localeCompare(b.leadId),
+      )
+      .slice(0, limit)
+      .map((lead) => ({
+        leadId: lead.leadId,
+        createdAt: lead.createdAt,
+        websiteHost: lead.websiteHost,
+        marketingOptIn: lead.marketingOptIn,
+        opportunityCount: lead.opportunityTitles.length,
+        deliveryStatus: lead.deliveryStatus,
+      }));
+  }
   private records = new Map<string, MemoryRecord>();
 
   async getByScanId(scanId: string) {

@@ -6,7 +6,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { emptyFreeScannerIntakeValues } from "@/lib/scanner-free-intake";
 import { buildPageMetadata } from "@/lib/seo";
 
-import { submitFreeScannerIntake } from "./actions";
+import { submitFreeLeadCapture, submitFreeScannerIntake } from "./actions";
 
 export function generateMetadata(): Metadata {
   return buildPageMetadata({
@@ -56,6 +56,7 @@ export default function FreeScannerPage() {
               values: emptyFreeScannerIntakeValues,
               errors: {},
             }}
+            leadAction={submitFreeLeadCapture}
             turnstileSiteKey={turnstileSiteKey}
           />
         </div>

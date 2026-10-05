@@ -4,6 +4,7 @@ import { checkOpsFeedAuth } from "@/lib/ops-feed-auth";
 import {
   OPS_FEED_SCHEMA_VERSION,
   buildOpsFeedEvent,
+  buildOpsFreeLeadEvent,
   decodeFeedCursor,
   encodeFeedCursor,
   parsePageSize,
@@ -51,12 +52,40 @@ export async function GET(request: NextRequest) {
   }
   const limit = parsePageSize(request.nextUrl.searchParams.get("limit"));
 
-  try {
-    // Fetch one extra row to learn whether another page exists.
-    const rows = await getScannerReportStore().listCompletedSummariesAfter(
-      after,
-      limit + 1,
+  const stream = request.nextUrl.searchParams.get("stream") ?? "reports";
+  if (stream !== "reports" && stream !== "free_leads") {
+    return NextResponse.json(
+      { error: "Unknown stream." },
+      { status: 400, headers: NO_STORE },
     );
+  }
+
+  try {
+    const store = getScannerReportStore();
+    // Fetch one extra row to learn whether another page exists. Each stream has
+    // its own cursor; a cursor from one is not valid for the other.
+    if (stream === "free_leads") {
+      const rows = await store.listFreeLeadSummariesAfter(
+        after ? { createdAt: after.completedAt, leadId: after.scanId } : null,
+        limit + 1,
+      );
+      const page = rows.slice(0, limit);
+      const last = page[page.length - 1];
+      return NextResponse.json(
+        {
+          schemaVersion: OPS_FEED_SCHEMA_VERSION,
+          stream,
+          events: page.map((summary) => buildOpsFreeLeadEvent(summary, idSecret)),
+          nextCursor: last
+            ? encodeFeedCursor({ completedAt: last.createdAt, scanId: last.leadId })
+            : cursorParam,
+          hasMore: rows.length > limit,
+        },
+        { headers: NO_STORE },
+      );
+    }
+
+    const rows = await store.listCompletedSummariesAfter(after, limit + 1);
     const page = rows.slice(0, limit);
     const last = page[page.length - 1];
     return NextResponse.json(

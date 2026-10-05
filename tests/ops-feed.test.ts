@@ -199,6 +199,57 @@ describe("GET /api/ops/events", () => {
     expect(new Set(ids).size).toBe(3);
   });
 
+  describe("free_leads stream", () => {
+    async function seedLead(leadId: string, createdAt: string, email = "lead@private-example.com") {
+      await store.saveFreeLead({
+        leadId,
+        createdAt,
+        email,
+        marketingOptIn: true,
+        websiteHost: "redwood.example.com",
+        opportunityTitles: ["One", "Two", "Three"],
+        deliveryStatus: "sent",
+      });
+    }
+
+    it("returns lead events without the email or the raw lead id", async () => {
+      await seedLead("free_lead_secretid", "2026-10-01T00:00:00.000Z");
+      const response = await GET(request("?stream=free_leads"));
+      const text = await response.text();
+      expect(response.status).toBe(200);
+      expect(text).not.toContain("lead@private-example.com");
+      expect(text).not.toContain("free_lead_secretid");
+      const body = JSON.parse(text);
+      expect(body.stream).toBe("free_leads");
+      expect(body.events[0]).toMatchObject({
+        type: "oppscan.free_lead_captured",
+        source: "oppscan.futco.ai",
+        data: { product: "free_summary", websiteHost: "redwood.example.com", marketingOptIn: true, opportunityCount: 3, deliveryStatus: "sent" },
+      });
+      expect(body.events[0].id).toMatch(/^lead_[0-9a-f]{24}$/);
+    });
+
+    it("pages oldest-first with its own cursor and stays separate from the reports stream", async () => {
+      await seedLead("free_lead_b", "2026-10-02T00:00:00.000Z", "b@private-example.com");
+      await seedLead("free_lead_a", "2026-10-01T00:00:00.000Z", "a@private-example.com");
+      await seed(store, "scan_report", "2026-10-03T00:00:00.000Z");
+
+      const first = await (await GET(request("?stream=free_leads&limit=1"))).json();
+      expect(first.events.map((e: { occurredAt: string }) => e.occurredAt)).toEqual(["2026-10-01T00:00:00.000Z"]);
+      expect(first.hasMore).toBe(true);
+      const second = await (await GET(request(`?stream=free_leads&limit=1&cursor=${first.nextCursor}`))).json();
+      expect(second.events.map((e: { occurredAt: string }) => e.occurredAt)).toEqual(["2026-10-02T00:00:00.000Z"]);
+      expect(second.hasMore).toBe(false);
+
+      const reports = await (await GET(request())).json();
+      expect(reports.events.map((e: { type: string }) => e.type)).toEqual(["oppscan.report_completed"]);
+    });
+
+    it("rejects an unknown stream (400)", async () => {
+      expect((await GET(request("?stream=everything"))).status).toBe(400);
+    });
+  });
+
   it("rejects a malformed cursor (400)", async () => {
     expect((await GET(request("?cursor=garbage"))).status).toBe(400);
   });

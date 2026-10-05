@@ -93,6 +93,9 @@ export type FreeScannerFormState = {
   errors: FreeScannerIntakeErrors;
   candidates?: RankedScannerCandidate[];
   totalFound?: number;
+  // Server-signed copy of the summary, handed back so the optional email
+  // capture can send exactly what was shown (see scanner-free-summary-token.ts).
+  summaryToken?: string;
 };
 
 export function freeScannerSuccessState(
