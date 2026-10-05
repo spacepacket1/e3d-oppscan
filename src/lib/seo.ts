@@ -79,9 +79,15 @@ export function buildPageMetadata({
   };
 }
 
+// FutCo's Meta app (owned by FutCo LLC). Rendered as <meta property="fb:app_id">,
+// which Facebook's Sharing Debugger flags as missing. A public identifier, not
+// a secret.
+const FUTCO_FACEBOOK_APP_ID = "1625825109165825";
+
 export function buildRootMetadata(): Metadata {
   return {
     metadataBase: getSiteUrl(),
     applicationName: siteIdentity.name,
+    facebook: { appId: FUTCO_FACEBOOK_APP_ID },
   };
 }
