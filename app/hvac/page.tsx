@@ -42,7 +42,7 @@ export default function HvacLiteScannerPage() {
           />
         ) : null}
 
-        <section className="page-section page-section--hero">
+        <section className="page-section page-section--hero page-section--compact-bottom">
           <div className="container page-stack">
             <SectionHeading
               align="left"
@@ -55,7 +55,7 @@ export default function HvacLiteScannerPage() {
           </div>
         </section>
 
-        <section className="page-section">
+        <section className="page-section page-section--flush-top">
           <div className="container contact-layout">
             <HvacLiteForm
               action={submitHvacLiteIntake}

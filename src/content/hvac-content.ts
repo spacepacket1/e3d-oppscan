@@ -48,7 +48,7 @@ export const hvacLiteContent = {
     eyebrow: "FREE FOR HVAC OPERATORS",
     heading: "Capture More Booked Work From the Calls You're Already Getting",
     description:
-      "See where faster response, better estimate follow-up, and more consistent customer communication could mean more booked jobs for your business. Enter your website and work email below — we'll review your public site and send you a free custom report, plus an invite to a quick call to validate the opportunity.",
+      "Enter your website and work email. We'll review your public site and email you a free report on where faster response and estimate follow-up could mean more booked jobs, plus an invite to a quick call.",
   },
   form: {
     heading: "Get your free opportunity report",
