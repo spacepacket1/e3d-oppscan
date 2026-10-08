@@ -14,6 +14,7 @@ import {
 } from "@/lib/scanner-free-intake";
 import { FreeLeadCapture } from "@/components/free-lead-capture";
 import type { FreeLeadFormState } from "@/lib/scanner-free-lead";
+import { useFunnelTracking } from "@/lib/use-funnel-tracking";
 import { useTurnstile } from "@/lib/use-turnstile";
 
 const TURNSTILE_WIDGET_ID = "free-scanner-turnstile";
@@ -53,9 +54,12 @@ export function FreeScannerForm({
     containerRef: setTurnstileContainer,
     failed: turnstileFailed,
     scriptBlocked: turnstileScriptBlocked,
-    checking: turnstileChecking,
+    verifying: turnstileVerifying,
+    timedOut: turnstileTimedOut,
+    guardSubmit,
     reset: resetTurnstile,
-  } = useTurnstile(TURNSTILE_WIDGET_ID, turnstileSiteKey);
+  } = useTurnstile(TURNSTILE_WIDGET_ID, turnstileSiteKey, "free");
+  const { onFocus: handleFormFocus, trackTap } = useFunnelTracking("free", state);
 
   // A stale or already-verified Turnstile token left in the widget after a
   // failed submission would fail the same way on a plain resubmit, so force
@@ -120,13 +124,18 @@ export function FreeScannerForm({
   }
 
   return (
-    <form action={formAction} className="contact-form" noValidate>
+    <form
+      action={formAction}
+      className="contact-form"
+      noValidate
+      onFocus={handleFormFocus}
+      onSubmit={(event) => {
+        trackTap();
+        guardSubmit(event);
+      }}
+    >
       <div className="contact-form__header">
         <h2>Where could AI help your business?</h2>
-        <p>
-          Enter your website. We&apos;ll read it and show you your top AI opportunities in about
-          a minute — no payment, no account.
-        </p>
       </div>
 
       <Field error={state.errors.companyWebsite} id="companyWebsite" label="Company website">
@@ -217,6 +226,11 @@ export function FreeScannerForm({
           challenges.cloudflare.com and reload this page. If it still
           doesn&apos;t work, try a different browser.
         </p>
+      ) : turnstileTimedOut ? (
+        <p className="form-error" role="alert">
+          The verification check is taking longer than usual. Please complete it above, then
+          tap the button again.
+        </p>
       ) : null}
 
       {state.errors.form ? (
@@ -226,19 +240,20 @@ export function FreeScannerForm({
       ) : null}
 
       <p className="development-note">
-        No payment, no account. Read the{" "}
+        We only read your public website. See an{" "}
+        <Link href="/example">example of the full report</Link>, or read the{" "}
         <a href="https://futco.ai/privacy">privacy policy</a>.
       </p>
 
       <button
         className="button button--primary"
-        disabled={isPending || turnstileChecking}
+        disabled={isPending || turnstileVerifying}
         type="submit"
       >
         {isPending
           ? "Reading your website..."
-          : turnstileChecking
-            ? "Getting ready..."
+          : turnstileVerifying
+            ? "Verifying..."
             : "Show my top AI opportunities"}
       </button>
       {isPending ? (

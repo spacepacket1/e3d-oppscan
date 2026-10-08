@@ -11,6 +11,7 @@ import {
 } from "@/lib/scanner-lite-stack";
 import { ensureMetaPixel, trackMetaPixelEvent } from "@/lib/meta-pixel";
 import type { HvacLiteFormState, HvacLiteIntakeValues } from "@/lib/scanner-lite-intake";
+import { useFunnelTracking } from "@/lib/use-funnel-tracking";
 import { useTurnstile } from "@/lib/use-turnstile";
 
 const TURNSTILE_WIDGET_ID = "hvac-lite-turnstile";
@@ -36,9 +37,12 @@ export function HvacLiteForm({
     containerRef: setTurnstileContainer,
     failed: turnstileFailed,
     scriptBlocked: turnstileScriptBlocked,
-    checking: turnstileChecking,
+    verifying: turnstileVerifying,
+    timedOut: turnstileTimedOut,
+    guardSubmit,
     reset: resetTurnstile,
-  } = useTurnstile(TURNSTILE_WIDGET_ID, turnstileSiteKey);
+  } = useTurnstile(TURNSTILE_WIDGET_ID, turnstileSiteKey, "hvac");
+  const { onFocus: handleFormFocus, trackTap } = useFunnelTracking("hvac", state);
 
   useEffect(() => {
     ensureMetaPixel(metaPixelId);
@@ -69,7 +73,13 @@ export function HvacLiteForm({
       action={formAction}
       className="contact-form"
       noValidate
-      onSubmit={() => trackMetaPixelEvent("Lead")}
+      onFocus={handleFormFocus}
+      onSubmit={(event) => {
+        trackTap();
+        // The Lead event waits for the submission that actually goes through,
+        // not the tap that Turnstile holds while its check finishes.
+        if (guardSubmit(event)) trackMetaPixelEvent("Lead");
+      }}
     >
       <div className="contact-form__header">
         <h2>{hvacLiteContent.form.heading}</h2>
@@ -190,6 +200,11 @@ export function HvacLiteForm({
           challenges.cloudflare.com and reload this page. If it still
           doesn&apos;t work, try a different browser.
         </p>
+      ) : turnstileTimedOut ? (
+        <p className="form-error" role="alert">
+          The verification check is taking longer than usual. Please complete it above, then
+          tap the button again.
+        </p>
       ) : null}
 
       {state.errors.form ? (
@@ -200,13 +215,13 @@ export function HvacLiteForm({
 
       <button
         className="button button--primary"
-        disabled={isPending || turnstileChecking}
+        disabled={isPending || turnstileVerifying}
         type="submit"
       >
         {isPending
           ? hvacLiteContent.form.pendingLabel
-          : turnstileChecking
-            ? "Getting ready..."
+          : turnstileVerifying
+            ? "Verifying..."
             : hvacLiteContent.form.submitLabel}
       </button>
     </form>

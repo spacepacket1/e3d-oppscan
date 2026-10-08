@@ -34,12 +34,12 @@ export default function FreeScannerPage() {
         />
       ) : null}
 
-      <section className="page-section page-section--hero">
+      <section className="page-section page-section--hero page-section--compact-bottom">
         <div className="container page-stack">
           <SectionHeading
             align="left"
             as="h1"
-            description="Enter your website and get a free summary of where AI could help your business, in about a minute — no payment, no account. Want the full ranked report, evidence, first steps, and a consultation with FutCo? Upgrade to the paid scan any time."
+            description="Enter your website and see where AI could help your business, in about a minute. Free, no account."
             eyebrow="FREE SUMMARY"
             title="Try the free AI opportunity summary"
             titleId="page-title"
@@ -47,7 +47,7 @@ export default function FreeScannerPage() {
         </div>
       </section>
 
-      <section className="page-section">
+      <section className="page-section page-section--flush-top">
         <div className="container contact-layout">
           <FreeScannerForm
             action={submitFreeScannerIntake}

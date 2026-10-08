@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 
 import { FUTCO_META_PIXEL_ID, ensureMetaPixel, trackMetaPixelEvent } from "@/lib/meta-pixel";
 import { emptyFreeLeadValues, type FreeLeadFormState } from "@/lib/scanner-free-lead";
+import { useFunnelTracking } from "@/lib/use-funnel-tracking";
 import { useTurnstile } from "@/lib/use-turnstile";
 
 const TURNSTILE_WIDGET_ID = "free-lead-turnstile";
@@ -31,9 +32,12 @@ export function FreeLeadCapture({
     containerRef: setTurnstileContainer,
     failed: turnstileFailed,
     scriptBlocked: turnstileScriptBlocked,
-    checking: turnstileChecking,
+    verifying: turnstileVerifying,
+    timedOut: turnstileTimedOut,
+    guardSubmit,
     reset: resetTurnstile,
-  } = useTurnstile(TURNSTILE_WIDGET_ID, turnstileSiteKey);
+  } = useTurnstile(TURNSTILE_WIDGET_ID, turnstileSiteKey, "free_lead");
+  const { onFocus: handleFormFocus, trackTap } = useFunnelTracking("free_lead", state);
 
   useEffect(() => {
     if (state.status !== "error") return;
@@ -60,7 +64,16 @@ export function FreeLeadCapture({
   }
 
   return (
-    <form action={formAction} className="contact-form content-panel" noValidate>
+    <form
+      action={formAction}
+      className="contact-form content-panel"
+      noValidate
+      onFocus={handleFormFocus}
+      onSubmit={(event) => {
+        trackTap();
+        guardSubmit(event);
+      }}
+    >
       <div className="contact-form__header">
         <h3>Want this summary in your inbox?</h3>
         <p>
@@ -125,6 +138,11 @@ export function FreeLeadCapture({
           Bot verification couldn&apos;t load. If you use an ad blocker or strict tracking
           protection, please allow challenges.cloudflare.com and reload this page.
         </p>
+      ) : turnstileTimedOut ? (
+        <p className="form-error" role="alert">
+          The verification check is taking longer than usual. Please complete it above, then
+          tap the button again.
+        </p>
       ) : null}
 
       {state.errors.form ? (
@@ -135,10 +153,10 @@ export function FreeLeadCapture({
 
       <button
         className="button button--primary"
-        disabled={isPending || turnstileChecking}
+        disabled={isPending || turnstileVerifying}
         type="submit"
       >
-        {isPending ? "Sending..." : turnstileChecking ? "Getting ready..." : "Email me this summary"}
+        {isPending ? "Sending..." : turnstileVerifying ? "Verifying..." : "Email me this summary"}
       </button>
     </form>
   );

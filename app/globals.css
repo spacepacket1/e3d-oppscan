@@ -171,6 +171,16 @@ button {
   padding-top: clamp(2rem, 4vw, 3.25rem);
 }
 
+/* /free: keep the heading and the form together so the form is on the first
+   screen on a phone. */
+.page-section--compact-bottom {
+  padding-bottom: 1.25rem;
+}
+
+.page-section--flush-top {
+  padding-top: 0;
+}
+
 .page-section--tinted {
   background: linear-gradient(180deg, rgba(238, 244, 248, 0.55), rgba(255, 255, 255, 0));
 }

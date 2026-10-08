@@ -21,9 +21,10 @@ describe("FreeLeadCapture", () => {
     expect(markup).not.toMatch(/name="marketingOptIn"[^>]*checked/);
   });
 
-  it("holds the button on 'Getting ready...' while the invisible bot check runs", () => {
-    expect(markup).toContain("Getting ready...");
-    expect(markup).toMatch(/<button[^>]*disabled[^>]*>Getting ready\.\.\./);
+  it("never locks the button behind the invisible bot check", () => {
+    expect(markup).toContain("Email me this summary");
+    expect(markup).not.toContain("Getting ready...");
+    expect(markup).not.toMatch(/<button[^>]*disabled/);
   });
 
   it("shows the normal button when no bot check is configured", () => {
