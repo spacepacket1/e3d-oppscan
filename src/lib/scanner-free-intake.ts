@@ -241,7 +241,7 @@ export const FREE_DEFAULT_WORKFLOWS =
 export const FREE_DEFAULT_AI_USE = "Not stated.";
 
 export const FREE_PROFILE_UNAVAILABLE_MESSAGE =
-  "We couldn't read that website automatically. Add a sentence about what your business does and try again.";
+  "We couldn't read that website automatically (some sites block automated readers). Describe what your business does in a sentence or two below and submit again.";
 
 export type FreeSiteDraft = {
   companyName: string;

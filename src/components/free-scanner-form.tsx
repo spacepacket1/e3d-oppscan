@@ -69,6 +69,13 @@ export function FreeScannerForm({
     resetTurnstile();
   }, [state, resetTurnstile]);
 
+  // When the site couldn't be read, the one thing the visitor can do is type a
+  // description, so put the cursor there rather than leaving them to find it.
+  useEffect(() => {
+    if (state.status !== "error" || !state.errors.companyDescription) return;
+    document.getElementById("companyDescription")?.focus();
+  }, [state]);
+
   useEffect(() => {
     if (state.status !== "success") return;
     // Generating a summary is not a lead -- nobody has given us any contact
