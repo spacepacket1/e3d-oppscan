@@ -50,3 +50,7 @@ npm run test:mongo  # requires a real MongoDB replica set at SCANNER_MONGO_URL
 Runs via `ops/run/run-oppscan.sh` under PM2, behind nginx on
 `oppscan.futco.ai`. See the sibling `e3d-applied` repo's `ops/run/run-applied.sh`
 for the same convention this mirrors.
+
+## License
+
+[MIT](LICENSE) © 2026 FutCo LLC. Part of the [FutCo](https://futco.ai/projects) open-source ecosystem.
